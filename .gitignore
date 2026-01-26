@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Data (DO NOT commit datasets)
+data/raw/
+data/**/raw/
+data/processed/
+
+# Large binary tables
+*.parquet
+*.feather
+*.pkl
+
+# Reports / outputs (keep if you want)
+# reports/
