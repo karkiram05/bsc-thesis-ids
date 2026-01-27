@@ -60,6 +60,7 @@ def main() -> None:
     ap.add_argument("--split", choices=["day", "strat"], default="day", help="split_day or split_strat")
     ap.add_argument("--out-dir", type=Path, default=MODELS_DIR, help="Models output dir")
     ap.add_argument("--sample", type=int, default=0, help="If >0, sample N per split for quick runs")
+    ap.add_argument("--baseline-only", action="store_true", help="Train only LogReg + RF (no XGBoost)")
     args = ap.parse_args()
 
     split_col = SPLIT_COL_DAY if args.split == "day" else SPLIT_COL_STRAT
@@ -100,7 +101,7 @@ def main() -> None:
             class_weight="balanced", random_state=RNG,
         )),
     ])
-    lr.fit(Xt, yt)  # pipeline fits scaler internally
+    lr.fit(Xt, yt_)
     models.append(("LogReg", lr))
 
     # Stronger 1: RF
@@ -108,17 +109,18 @@ def main() -> None:
         n_estimators=200, max_depth=24, max_features="sqrt",
         class_weight="balanced_subsample", random_state=RNG, n_jobs=-1,
     )
-    rf.fit(Xt_s, yt)
+    rf.fit(Xt_s, yt_)
     models.append(("RandomForest", rf))
 
-    # Stronger 2: XGBoost
-    xgb_clf = xgb.XGBClassifier(
-        n_estimators=200, max_depth=8, learning_rate=0.1,
-        use_label_encoder=False, eval_metric="mlogloss",
-        random_state=RNG, n_jobs=-1,
-    )
-    xgb_clf.fit(Xt_s, yt, verbose=False)
-    models.append(("XGBoost", xgb_clf))
+    # Stronger 2: XGBoost (skip with --baseline-only)
+    if not args.baseline_only:
+        xgb_clf = xgb.XGBClassifier(
+            n_estimators=200, max_depth=8, learning_rate=0.1,
+            use_label_encoder=False, eval_metric="mlogloss",
+            random_state=RNG, n_jobs=-1,
+        )
+        xgb_clf.fit(Xt_s, yt_, verbose=False)
+        models.append(("XGBoost", xgb_clf))
 
     # Save artifacts
     joblib.dump(le, out / "label_encoder.joblib")

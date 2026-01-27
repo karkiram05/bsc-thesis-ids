@@ -23,6 +23,14 @@ make all      # Same as make report
 make clean    # Remove data/processed, reports, models
 ```
 
+**Credibility-focused (run in this order):**
+
+```bash
+make multiclass-baseline   # LogReg + RF multi-class -> reports/baselines/multiclass_report.md
+make leakage-check         # Exact + near-dup leakage -> reports/leakage_check.md
+make eval-split-compare    # Strat vs day split -> reports/eval_split_compare.md
+```
+
 Override split or Python:
 
 ```bash
@@ -68,8 +76,11 @@ Use `--no-leakage-drop` when running `prepare_data` to keep them (not recommende
 
 ## Scripts
 
-- `src/prepare_data.py` — Preprocess, dedup, conflict resolution, splits.
-- `src/train.py` — Train LogReg, RF, XGBoost.
+- `src/prepare_data.py` — Preprocess, dedup, conflict resolution, label cleaning, splits.
+- `src/train.py` — Train LogReg, RF, XGBoost (`--baseline-only` for LogReg+RF only).
+- `src/train_multiclass_baseline.py` — Multi-class baseline (LogReg + RF) → `multiclass_report.md`.
+- `src/leakage_check.py` — Exact + near-duplicate leakage checks; documents 5-tuple limitation.
+- `src/eval_split_compare.py` — Stratified vs day split comparison → `eval_split_compare.md`.
 - `src/eval.py` — Metrics, confusion matrices, feature importance, predictions.
 - `src/mitre_alerts.py` — Map predictions to ATT&CK + CK, write alerts.
 - `src/report.py` — Build `report.md` and figures.
