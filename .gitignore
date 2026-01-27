@@ -28,6 +28,8 @@ data/processed/
 *.parquet
 *.feather
 *.pkl
+*.joblib
 
-# Reports / outputs 
+# Models and reports
+models/
 reports/
