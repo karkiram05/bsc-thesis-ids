@@ -208,13 +208,16 @@ def main() -> None:
     if "logreg" in models_requested:
         lr = Pipeline(
             steps=[
-                ("scaler", StandardScaler()),
+                ("scaler", StandardScaler(with_mean=True)),
                 (
                     "clf",
                     LogisticRegression(
                         solver="saga",
-                        max_iter=2000,
+                        max_iter=1000,
+                        tol=1e-3,
                         class_weight="balanced",
+                        verbose=1,
+                        random_state=42,
                     ),
                 ),
             ]
