@@ -28,10 +28,42 @@ def infer_day_from_filename(name: str) -> str:
     raise ValueError(f"Cannot infer day from filename: {name}")
 
 
+# Common encoding junk (e.g. "Web Attack XSS") -> replace with canonical
+LABEL_FIXES = (
+    ("\ufffd", ""),           # Unicode replacement char
+    ("  ", " "),
+    (" – ", "-"),             # en-dash
+    (" - ", "-"),             # normalize "Web Attack - XSS" -> "Web Attack-XSS"
+)
+LABEL_ALIASES = {
+    "web attack - xss": "Web Attack-XSS",
+    "web attack - sql injection": "Web Attack-Sql Injection",
+    "web attack - brute force": "Web Attack-Brute Force",
+    "web attack xss": "Web Attack-XSS",
+    "web attack sql injection": "Web Attack-Sql Injection",
+    "web attack brute force": "Web Attack-Brute Force",
+    "dos attacks-hulk": "DoS attacks-Hulk",
+    "dos attacks-goldeneye": "DoS attacks-GoldenEye",
+    "dos attacks-slowhttptest": "DoS attacks-SlowHTTPTest",
+    "dos attacks-slowloris": "DoS attacks-Slowloris",
+    "ddos attacks-hoic": "DDoS attacks-HOIC",
+    "ddos attacks-loic-udp": "DDoS attacks-LOIC-UDP",
+    "ftp-bruteforce": "FTP-BruteForce",
+    "ssh-bruteforce": "SSH-BruteForce",
+    "portscan": "PortScan",
+    "port scan": "Port Scan",
+    "benign": "Benign",
+}
+
+
 def normalize_label(s: str) -> str:
-    """Normalize Label to canonical attack_type (trim, collapse whitespace)."""
+    """Clean label: fix encoding, collapse whitespace, apply canonical aliases."""
     t = str(s).strip()
-    return " ".join(t.split()) if t else ""
+    for a, b in LABEL_FIXES:
+        t = t.replace(a, b)
+    t = " ".join(t.split()) if t else ""
+    key = t.lower()
+    return LABEL_ALIASES.get(key, t) if key else t
 
 
 def main() -> None:

@@ -47,6 +47,7 @@ RNG = 42
 
 # Outputs
 REPORTS_DIR = ROOT / "reports"
+BASELINES_DIR = REPORTS_DIR / "baselines"
 MODELS_DIR = ROOT / "models"
 METRICS_DIR = REPORTS_DIR / "metrics"
 FIGURES_DIR = REPORTS_DIR / "figures"
