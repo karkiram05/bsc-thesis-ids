@@ -1,0 +1,128 @@
+{
+  "Benign": {
+    "attck_id": null,
+    "attck_name": null,
+    "ck_phase": null,
+    "justification": "Normal traffic; no technique mapped."
+  },
+  "FTP-BruteForce": {
+    "attck_id": "T1110",
+    "attck_name": "Brute Force",
+    "ck_phase": "Weaponization",
+    "justification": "FTP brute-force uses password guessing (T1110.001) against FTP (21/TCP)."
+  },
+  "SSH-BruteForce": {
+    "attck_id": "T1110",
+    "attck_name": "Brute Force",
+    "ck_phase": "Weaponization",
+    "justification": "SSH brute-force uses password guessing (T1110.001) against SSH (22/TCP)."
+  },
+  "DoS attacks-Hulk": {
+    "attck_id": "T1498",
+    "attck_name": "Network Denial of Service",
+    "ck_phase": "Impact",
+    "justification": "Hulk floods HTTP to exhaust server resources; maps to T1498 Direct Network Flood."
+  },
+  "DoS attacks-GoldenEye": {
+    "attck_id": "T1498",
+    "attck_name": "Network Denial of Service",
+    "ck_phase": "Impact",
+    "justification": "GoldenEye keeps HTTP connections alive to exhaust Keep-Alive; T1498."
+  },
+  "DoS attacks-SlowHTTPTest": {
+    "attck_id": "T1499",
+    "attck_name": "Endpoint Denial of Service",
+    "ck_phase": "Impact",
+    "justification": "Slowloris-style slow HTTP requests exhaust connection pools; T1499."
+  },
+  "DoS attacks-Slowloris": {
+    "attck_id": "T1499",
+    "attck_name": "Endpoint Denial of Service",
+    "ck_phase": "Impact",
+    "justification": "Slowloris holds connections open with partial requests; T1499."
+  },
+  "Heartbleed": {
+    "attck_id": "T1190",
+    "attck_name": "Exploit Public-Facing Application",
+    "ck_phase": "Exploitation",
+    "justification": "Heartbleed abuses TLS heartbeat; exploitation of public-facing service (T1190)."
+  },
+  "Web Attack-Brute Force": {
+    "attck_id": "T1110",
+    "attck_name": "Brute Force",
+    "ck_phase": "Weaponization",
+    "justification": "Web login brute-force; T1110 Password Guessing."
+  },
+  "Web Attack-Sql Injection": {
+    "attck_id": "T1190",
+    "attck_name": "Exploit Public-Facing Application",
+    "ck_phase": "Exploitation",
+    "justification": "SQLi exploits web app to access backend; T1190."
+  },
+  "Web Attack-XSS": {
+    "attck_id": "T1059.007",
+    "attck_name": "Command and Scripting Interpreter: JavaScript",
+    "ck_phase": "Exploitation",
+    "justification": "XSS injects client-side scripts; T1059.007 / abuse of web app (T1190)."
+  },
+  "Infiltration": {
+    "attck_id": "T1046",
+    "attck_name": "Network Service Discovery",
+    "ck_phase": "Reconnaissance",
+    "justification": "Infiltration capture includes port scan and exfil; T1046 + exfil techniques."
+  },
+  "Bot": {
+    "attck_id": "T1583",
+    "attck_name": "Acquire Infrastructure",
+    "ck_phase": "Command and Control",
+    "justification": "Botnet C2 traffic; T1583 / T1071 Application Layer Protocol."
+  },
+  "PortScan": {
+    "attck_id": "T1046",
+    "attck_name": "Network Service Discovery",
+    "ck_phase": "Reconnaissance",
+    "justification": "Port scanning discovers live services; T1046."
+  },
+  "Port Scan": {
+    "attck_id": "T1046",
+    "attck_name": "Network Service Discovery",
+    "ck_phase": "Reconnaissance",
+    "justification": "Port scanning discovers live services; T1046."
+  },
+  "Web Attack - Brute Force": {
+    "attck_id": "T1110",
+    "attck_name": "Brute Force",
+    "ck_phase": "Weaponization",
+    "justification": "Web login brute-force; T1110 Password Guessing."
+  },
+  "Web Attack - Sql Injection": {
+    "attck_id": "T1190",
+    "attck_name": "Exploit Public-Facing Application",
+    "ck_phase": "Exploitation",
+    "justification": "SQLi exploits web app to access backend; T1190."
+  },
+  "Web Attack - XSS": {
+    "attck_id": "T1059.007",
+    "attck_name": "Command and Scripting Interpreter: JavaScript",
+    "ck_phase": "Exploitation",
+    "justification": "XSS injects client-side scripts; T1059.007 / abuse of web app (T1190)."
+  },
+  "DDoS attacks-HOIC": {
+    "attck_id": "T1498",
+    "attck_name": "Network Denial of Service",
+    "ck_phase": "Impact",
+    "justification": "DDoS HTTP floods; T1498 Network DoS."
+  },
+  "DDoS attacks-LOIC-UDP": {
+    "attck_id": "T1498",
+    "attck_name": "Network Denial of Service",
+    "ck_phase": "Impact",
+    "justification": "UDP-based DDoS flood; T1498."
+  },
+  "_default": {
+    "attck_id": "T1595",
+    "attck_name": "Active Scanning",
+    "ck_phase": "Reconnaissance",
+    "justification": "Unmapped attack; generic Active Scanning (T1595) fallback."
+  }
+}
