@@ -1,130 +1,165 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pandas as pd
-import numpy as np
+import re
 
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
 
 RAW_DIR = Path("data/raw/cicids2017")
 OUT_DIR = Path("data/processed/cicids2017")
-
-OUT_ALL = OUT_DIR / "all_clean.parquet"
+OUT_DATA = OUT_DIR / "all_clean.parquet"
 OUT_META = OUT_DIR / "meta.md"
 
-# day-based split:
-# train: Mon+Tue+Wed, val: Thu, test: Fri
-DAY_SPLIT = {
-    "train": ["Monday", "Tuesday", "Wednesday"],
-    "val": ["Thursday"],
-    "test": ["Friday"],
-}
+RNG = 42
 
 
 def infer_day_from_filename(name: str) -> str:
-    # your file names look like: Benign-Monday-no-metadata.parquet
-    # we find the weekday token
+    # Example: Benign-Monday-no-metadata.parquet
     for d in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]:
-        if d in name:
+        if re.search(rf"\b{d}\b", name):
             return d
-    return "Unknown"
-
-
-def read_one(p: Path) -> pd.DataFrame:
-    df = pd.read_parquet(p)
-    df.columns = [c.strip() for c in df.columns]
-
-    if "Label" not in df.columns:
-        raise ValueError(f"Missing Label column in {p.name}")
-
-    df["source_file"] = p.name
-    df["day"] = infer_day_from_filename(p.name)
-    return df
-
-
-def clean_df(df: pd.DataFrame) -> pd.DataFrame:
-    # replace inf -> NaN, then drop NaN rows
-    df = df.replace([np.inf, -np.inf], np.nan)
-    before = len(df)
-    df = df.dropna(axis=0)
-    after = len(df)
-
-    # enforce numeric features only (Label/day/source_file kept separate)
-    y = df["Label"].astype(str)
-    day = df["day"].astype(str)
-    src = df["source_file"].astype(str)
-
-    # all columns except Label/day/source_file
-    feature_cols = [c for c in df.columns if c not in ["Label", "day", "source_file"]]
-    X = df[feature_cols]
-
-    # keep only numeric columns (safety)
-    X = X.select_dtypes(include=[np.number])
-
-    out = X.copy()
-    out["Label"] = y.values
-    out["is_attack"] = (y != "Benign").astype(np.int8).values
-    out["day"] = day.values
-    out["source_file"] = src.values
-
-    dropped = before - after
-    return out, dropped
-
-
-def assign_split(day: str) -> str:
-    for split, days in DAY_SPLIT.items():
-        if day in days:
-            return split
-    return "unknown"
+    raise ValueError(f"Could not infer day from filename: {name}")
 
 
 def main() -> None:
+    if not RAW_DIR.exists():
+        raise SystemExit(f"Missing raw dir: {RAW_DIR}")
+
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
     files = sorted(RAW_DIR.glob("*.parquet"))
     if not files:
         raise SystemExit(f"No parquet files found in {RAW_DIR}")
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    dfs: list[pd.DataFrame] = []
+    for f in files:
+        print(f"[read] {f.name}")
+        df = pd.read_parquet(f)
 
-    parts = []
-    for p in files:
-        print(f"[read] {p.name}")
-        parts.append(read_one(p))
+        # standardize column names
+        df.columns = [c.strip() for c in df.columns]
 
-    df = pd.concat(parts, ignore_index=True)
-    print(f"[concat] shape={df.shape}")
+        if "Label" not in df.columns:
+            raise SystemExit(f"Missing Label column in {f.name}")
 
-    cleaned, dropped = clean_df(df)
-    print(f"[clean] shape={cleaned.shape} dropped_rows={dropped}")
+        df["Label"] = df["Label"].astype(str).str.strip()
+        df["source_file"] = f.name
+        df["day"] = infer_day_from_filename(f.name)
 
-    # create split column
-    cleaned["split"] = cleaned["day"].apply(assign_split)
+        dfs.append(df)
 
-    # sanity check: no unknown days
-    if (cleaned["split"] == "unknown").any():
-        unknown_days = cleaned.loc[cleaned["split"] == "unknown", "day"].value_counts()
-        raise SystemExit(f"Unknown day(s) found:\n{unknown_days}")
+    df_all = pd.concat(dfs, ignore_index=True)
+    print(f"[concat] shape={df_all.shape}")
 
-    # save
-    cleaned.to_parquet(OUT_ALL, index=False)
-    print(f"[save] {OUT_ALL}")
+    # Binary target
+    df_all["is_attack"] = (df_all["Label"].str.lower() != "benign").astype(int)
 
-    # write meta report
-    lines = []
-    lines.append("# Processed CICIDS2017 Dataset\n\n")
-    lines.append(f"- raw files: {len(files)}\n")
-    lines.append(f"- cleaned rows: {len(cleaned)}\n")
-    lines.append(f"- dropped rows (NaN/inf): {dropped}\n")
-    lines.append(f"- features: {cleaned.drop(columns=['Label','is_attack','day','source_file','split']).shape[1]}\n\n")
+    # Clean numeric columns: replace inf with NaN, then drop rows with any NaN
+    numeric_cols = df_all.select_dtypes(include=[np.number]).columns
+    before = len(df_all)
 
-    lines.append("## Split counts\n")
-    lines.append(cleaned["split"].value_counts().to_string() + "\n\n")
+    if len(numeric_cols) > 0:
+        df_all.loc[:, numeric_cols] = df_all.loc[:, numeric_cols].replace(
+            [np.inf, -np.inf], np.nan
+        )
 
-    lines.append("## Attack vs benign counts\n")
-    lines.append(cleaned["is_attack"].value_counts().to_string() + "\n\n")
+    df_all = df_all.dropna(axis=0)
+    dropped = int(before - len(df_all))
+    print(f"[clean] shape={df_all.shape} dropped_rows={dropped}")
 
-    lines.append("## Top labels\n")
-    lines.append(cleaned["Label"].value_counts().head(20).to_string() + "\n\n")
+    # -----------------------------
+    # Splits
+    # -----------------------------
+    # 1) Day-based split (time/generalization stress-test)
+    day_to_split = {
+        "Monday": "train",
+        "Tuesday": "train",
+        "Wednesday": "train",
+        "Thursday": "val",
+        "Friday": "test",
+    }
 
-    OUT_META.write_text("\n".join(lines), encoding="utf-8")
+    df_all["split_day"] = df_all["day"].map(day_to_split)
+    if df_all["split_day"].isna().any():
+        bad = sorted(
+            df_all.loc[df_all["split_day"].isna(), "day"].astype(str).unique().tolist()
+        )
+        raise SystemExit(f"Unknown day values found: {bad}")
+
+    # Keep legacy `split` as day split (your old meta uses this)
+    df_all["split"] = df_all["split_day"]
+
+    # 2) Stratified split (recommended for tuning)
+    y = df_all["is_attack"].astype(int)
+    idx_all = df_all.index.to_numpy()
+
+    # ratios close to your current run: train~0.62, val~0.16, test~0.22
+    test_size = 0.2233
+    idx_trainval, idx_test = train_test_split(
+        idx_all,
+        test_size=test_size,
+        random_state=RNG,
+        stratify=y,
+    )
+
+    y_trainval = y.loc[idx_trainval]
+    val_size_of_rest = 0.2023  # 0.1571/(1-0.2233)
+
+    _, idx_val = train_test_split(
+        idx_trainval,
+        test_size=val_size_of_rest,
+        random_state=RNG,
+        stratify=y_trainval,
+    )
+
+    df_all["split_strat"] = "train"
+    df_all.loc[idx_val, "split_strat"] = "val"
+    df_all.loc[idx_test, "split_strat"] = "test"
+
+    # Save
+    df_all.to_parquet(OUT_DATA, index=False)
+    print(f"[save] {OUT_DATA}")
+
+    # Meta
+    non_feature = {
+        "Label",
+        "is_attack",
+        "day",
+        "source_file",
+        "split",
+        "split_day",
+        "split_strat",
+    }
+    feat_cols = [c for c in df_all.columns if c not in non_feature]
+
+    meta_lines: list[str] = []
+    meta_lines.append("# Processed CICIDS2017 Dataset\n\n")
+    meta_lines.append(f"\n- raw files: {len(files)}\n\n")
+    meta_lines.append(f"- cleaned rows: {len(df_all)}\n\n")
+    meta_lines.append(f"- dropped rows (NaN/inf): {dropped}\n\n")
+    meta_lines.append(f"- features: {len(feat_cols)}\n\n")
+
+    meta_lines.append("\n## Split counts\n\n")
+
+    meta_lines.append("### split_day (time split)\n\n")
+    meta_lines.append(df_all["split_day"].value_counts().to_string())
+    meta_lines.append("\n\n")
+
+    meta_lines.append("### split_strat (stratified)\n\n")
+    meta_lines.append(df_all["split_strat"].value_counts().to_string())
+    meta_lines.append("\n\n")
+
+    meta_lines.append("\n## Attack vs benign counts\n\n")
+    meta_lines.append(df_all["is_attack"].value_counts().to_string())
+    meta_lines.append("\n\n")
+
+    meta_lines.append("\n## Top labels\n\n")
+    meta_lines.append(df_all["Label"].value_counts().head(20).to_string())
+    meta_lines.append("\n")
+
+    OUT_META.write_text("".join(meta_lines), encoding="utf-8")
     print(f"[save] {OUT_META}")
 
 
