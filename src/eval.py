@@ -86,8 +86,20 @@ def main() -> None:
         use_raw = _uses_internal_scaler(model)
         X_in = X if use_raw else X_s
 
-        pred = model.predict(X_in)
-        proba = model.predict_proba(X_in) if hasattr(model, "predict_proba") else None
+        # Predict (special handling for XGBoost when train split is missing some classes)
+        if key == 'xgboost' and (models_dir / 'xgb_classes.json').exists():
+            xgb_classes = np.array(json.loads((models_dir / 'xgb_classes.json').read_text()), dtype=int)
+            pred_local = model.predict(X_in).astype(int)
+            pred = xgb_classes[pred_local]
+            if hasattr(model, 'predict_proba'):
+                proba_local = model.predict_proba(X_in)
+                proba = np.zeros((proba_local.shape[0], n_classes), dtype=float)
+                proba[:, xgb_classes] = proba_local
+            else:
+                proba = None
+        else:
+            pred = model.predict(X_in)
+            proba = model.predict_proba(X_in) if hasattr(model, 'predict_proba') else None
 
         pr, rc, f1, sup = precision_recall_fscore_support(
             y, pred, labels=np.arange(n_classes), zero_division=0
