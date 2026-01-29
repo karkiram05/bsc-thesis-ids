@@ -119,7 +119,12 @@ def main() -> None:
             use_label_encoder=False, eval_metric="mlogloss",
             random_state=RNG, n_jobs=-1,
         )
-        xgb_clf.fit(Xt_s, yt_, verbose=False)
+        # XGBoost sklearn wrapper requires classes to be 0..K-1 contiguous.
+        # With day-based split, some global classes may be missing in train, so yt_ can have gaps.
+        xgb_classes = np.sort(np.unique(yt_))
+        yt_xgb = np.searchsorted(xgb_classes, yt_)
+        xgb_clf.fit(Xt_s, yt_xgb, verbose=False)
+        (out / 'xgb_classes.json').write_text(json.dumps(xgb_classes.tolist()), encoding='utf-8')
         models.append(("XGBoost", xgb_clf))
 
     # Save artifacts
