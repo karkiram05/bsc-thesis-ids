@@ -22,19 +22,22 @@ LEAKAGE_COLUMNS = frozenset({
     "Bwd Packets/s",
 })
 
-# Non-feature columns (metadata, targets, splits)
+# Non-feature columns (metadata, targets, splits, hashes)
+# IMPORTANT: row_hash must be here — it is a hash of the feature vector and would
+# give the model a perfect lookup key if included as a feature.
 NON_FEATURE = frozenset({
     "Label",
     "is_attack",
-    "attack_type",  # normalized multi-class label
+    "attack_type",   # normalized multi-class label
     "day",
     "source_file",
     "split",
     "split_day",
     "split_strat",
+    "row_hash",      # hash of feature row — must never be a model input
 })
 
-# Splits: by day (no overlap), then optional stratified within train/val/test
+# Day-based split assignment
 DAY_TO_SPLIT = {
     "Monday": "train",
     "Tuesday": "train",
@@ -50,10 +53,10 @@ REPORTS_DIR = ROOT / "reports"
 BASELINES_DIR = REPORTS_DIR / "baselines"
 MODELS_DIR = ROOT / "models"
 METRICS_DIR = REPORTS_DIR / "metrics"
-FIGURES_DIR = REPORTS_DIR / "figures"
+FIGURES_DIR = ROOT / "reports" / "figures"
 ALERTS_DIR = REPORTS_DIR / "alerts"
 
-# Train/eval
+# Train/eval split column names
 SPLIT_COL_DAY = "split_day"
 SPLIT_COL_STRAT = "split_strat"
-DEFAULT_SPLIT_COL = SPLIT_COL_DAY  # by day, no overlap
+DEFAULT_SPLIT_COL = SPLIT_COL_DAY  # day-based is the realistic one

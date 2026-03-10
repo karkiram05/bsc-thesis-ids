@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import time
 from pathlib import Path
 
 import joblib
@@ -27,40 +26,44 @@ from src.config import (
 
 
 def _feature_cols(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if c not in NON_FEATURE and c in df.columns]
+    return [c for c in df.columns if c not in NON_FEATURE]
 
 
 def load_splits(df: pd.DataFrame, split_col: str):
-    """Return (X_train, y_train, X_val, y_val, X_test, y_test, le, feat)."""
+    """Return (X_train, y_train, X_val, y_val, X_test, y_test, le, feat).
+
+    The LabelEncoder is fitted on ALL attack_type labels in the full dataframe,
+    not just the three splits. This ensures labels are always contiguous 0..N-1
+    even when some classes are absent from the training split (e.g. day split
+    where Friday-only attacks never appear in Mon-Wed training data).
+    XGBoost requires contiguous labels starting from 0 -- this guarantees that.
+    """
     feat = _feature_cols(df)
     assert feat, "No feature columns found"
 
+    le = LabelEncoder()
+    le.fit(df["attack_type"].astype(str))
+
     def part(s: str):
         sub = df.loc[df[split_col] == s]
-        y = sub["attack_type"].astype(str)
+        y_raw = sub["attack_type"].astype(str)
         X = sub[feat].copy()
-        return X, y
+        y_enc = le.transform(y_raw)
+        return X, np.asarray(y_enc)
 
     Xt, yt = part("train")
     Xv, yv = part("val")
     Xs, ys = part("test")
 
-    le = LabelEncoder()
-    all_labels = pd.concat([yt, yv, ys], ignore_index=True)
-    le.fit(all_labels)
-    yt_ = le.transform(yt)
-    yv_ = le.transform(yv)
-    ys_ = le.transform(ys)
-
-    return Xt, np.asarray(yt_), Xv, np.asarray(yv_), Xs, np.asarray(ys_), le, feat
+    return Xt, yt, Xv, yv, Xs, ys, le, feat
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--split", choices=["day", "strat"], default="day", help="split_day or split_strat")
-    ap.add_argument("--out-dir", type=Path, default=MODELS_DIR, help="Models output dir")
-    ap.add_argument("--sample", type=int, default=0, help="If >0, sample N per split for quick runs")
-    ap.add_argument("--baseline-only", action="store_true", help="Train only LogReg + RF (no XGBoost)")
+    ap.add_argument("--split", choices=["day", "strat"], default="day")
+    ap.add_argument("--out-dir", type=Path, default=MODELS_DIR)
+    ap.add_argument("--sample", type=int, default=0)
+    ap.add_argument("--baseline-only", action="store_true")
     args = ap.parse_args()
 
     split_col = SPLIT_COL_DAY if args.split == "day" else SPLIT_COL_STRAT
@@ -68,20 +71,18 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
 
     if not DATA_FILE.exists():
-        raise SystemExit(f"Missing {DATA_FILE}. Run: make data")
+        raise SystemExit(f"Missing {DATA_FILE}. Run: python -m src.prepare_data")
 
     df = pd.read_parquet(DATA_FILE)
     for s in ["train", "val", "test"]:
-        cnt = (df[split_col] == s).sum()
-        if cnt == 0:
-            raise SystemExit(f"No '{s}' split in {split_col}. Check prepare_data.")
+        if (df[split_col] == s).sum() == 0:
+            raise SystemExit(f"No '{s}' split in {split_col}.")
 
     if args.sample > 0:
         parts = []
         for s in ["train", "val", "test"]:
             sub = df[df[split_col] == s]
-            n = min(args.sample, len(sub))
-            parts.append(sub.sample(n=n, random_state=RNG))
+            parts.append(sub.sample(n=min(args.sample, len(sub)), random_state=RNG))
         df = pd.concat(parts, ignore_index=True)
         print(f"[sample] {args.sample} per split -> {len(df)} rows")
 
@@ -93,7 +94,8 @@ def main() -> None:
     Xt_s = scaler.fit_transform(Xt)
 
     models = []
-    # Baseline
+
+    print("[train] LogReg ...")
     lr = Pipeline([
         ("scaler", StandardScaler()),
         ("clf", LogisticRegression(
@@ -102,37 +104,40 @@ def main() -> None:
         )),
     ])
     lr.fit(Xt, yt)
-    models.append(("LogReg", lr))
+    models.append(("logreg", lr))
+    print("[train] LogReg done.")
 
-    # Stronger 1: RF
+    print("[train] RandomForest ...")
     rf = RandomForestClassifier(
         n_estimators=200, max_depth=24, max_features="sqrt",
         class_weight="balanced_subsample", random_state=RNG, n_jobs=-1,
     )
     rf.fit(Xt_s, yt)
-    models.append(("RandomForest", rf))
+    models.append(("random_forest", rf))
+    print("[train] RandomForest done.")
 
-    # Stronger 2: XGBoost (skip with --baseline-only)
     if not args.baseline_only:
+        print("[train] XGBoost ...")
         xgb_clf = xgb.XGBClassifier(
             n_estimators=200, max_depth=8, learning_rate=0.1,
-            use_label_encoder=False, eval_metric="mlogloss",
+            eval_metric="mlogloss",
             random_state=RNG, n_jobs=-1,
+            verbosity=0,
         )
-        xgb_clf.fit(Xt_s, yt, verbose=False)
-        models.append(("XGBoost", xgb_clf))
+        xgb_clf.fit(Xt_s, yt)
+        models.append(("xgboost", xgb_clf))
+        print("[train] XGBoost done.")
 
-    # Save artifacts
     joblib.dump(le, out / "label_encoder.joblib")
     joblib.dump(scaler, out / "scaler.joblib")
     with open(out / "feature_names.json", "w") as f:
         json.dump(feat, f, indent=2)
-    meta = {"split_col": split_col, "n_classes": n_classes, "feature_names": feat}
     with open(out / "meta.json", "w") as f:
-        json.dump(meta, f, indent=2)
+        json.dump({"split_col": split_col, "n_classes": n_classes,
+                   "feature_names": feat, "classes": list(le.classes_)}, f, indent=2)
 
     for name, m in models:
-        path = out / f"{name.lower().replace(' ', '_')}.joblib"
+        path = out / f"{name}.joblib"
         joblib.dump(m, path)
         print(f"[save] {path}")
 
