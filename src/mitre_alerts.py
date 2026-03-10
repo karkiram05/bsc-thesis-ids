@@ -14,34 +14,74 @@ MAPPING_PATH = Path(__file__).resolve().parent / "mitre_mapping.json"
 
 
 def _lookup(mapping: dict, attack_type: str) -> dict:
+    """
+    Look up attack_type in the MITRE mapping with multiple fallback strategies:
+    1. Exact match
+    2. Replace ' - ' with '-'  (e.g. 'Web Attack - XSS' -> 'Web Attack-XSS')
+    3. Replace ' – ' with '-'  (en-dash variant)
+    4. Case-insensitive exact match
+    5. Case-insensitive after normalising dashes
+    6. Fall back to _default
+    """
     at = str(attack_type).strip()
-    for key in [at, at.replace(" - ", "-"), at.replace(" ", ""), at.replace(" ", "-")]:
-        if key in mapping:
-            return {**mapping[key], "mapped_from": key}
+
+    # Strategy 1: exact match
+    if at in mapping:
+        return {**mapping[at], "mapped_from": at}
+
+    # Strategy 2: normalise ' - ' -> '-'
+    norm = at.replace(" - ", "-").replace(" – ", "-")
+    if norm in mapping:
+        return {**mapping[norm], "mapped_from": norm}
+
+    # Strategy 3: case-insensitive scan
+    at_lower = at.lower()
+    norm_lower = norm.lower()
     for k, v in mapping.items():
-        if k.startswith("_") or k == "Benign":
+        if k.startswith("_"):
             continue
-        if k.lower() == at.lower():
+        if k.lower() == at_lower or k.lower() == norm_lower:
             return {**v, "mapped_from": k}
+
+    # Strategy 4: partial substring match (e.g. 'DoS attacks-Hulk' in key)
+    for k, v in mapping.items():
+        if k.startswith("_"):
+            continue
+        if at_lower in k.lower() or k.lower() in at_lower:
+            return {**v, "mapped_from": k}
+
+    # Fallback
     return {**mapping["_default"], "mapped_from": "_default"}
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(
+        description="Map model predictions to MITRE ATT&CK techniques."
+    )
     ap.add_argument("--metrics-dir", type=Path, default=METRICS_DIR)
     ap.add_argument("--out-dir", type=Path, default=ALERTS_DIR)
-    ap.add_argument("--model", default=None, help="Use this model's predictions; default: best by macro F1")
+    ap.add_argument(
+        "--model",
+        default=None,
+        help="Use this model's predictions (e.g. random_forest). Default: best by macro F1.",
+    )
     args = ap.parse_args()
 
     metrics_dir = Path(args.metrics_dir)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    if not MAPPING_PATH.exists():
+        raise SystemExit(f"Missing MITRE mapping file: {MAPPING_PATH}")
+    if not (metrics_dir / "metrics.json").exists():
+        raise SystemExit(f"Missing metrics.json in {metrics_dir}. Run: python -m src.eval first.")
+
     mapping = json.loads(MAPPING_PATH.read_text())
     m = json.loads((metrics_dir / "metrics.json").read_text())
-    summary = m["summary"] if "summary" in m else m
+    summary = m.get("summary", m)
     full = m.get("full", m)
 
+    # Pick model to use
     if args.model:
         best = args.model
     else:
@@ -53,26 +93,36 @@ def main() -> None:
                 default=None,
             )
     if not best:
-        raise SystemExit("No model found in metrics. Run: make eval")
+        raise SystemExit("No model found in metrics.json. Run: python -m src.eval")
 
     pred_path = metrics_dir / f"predictions_{best}.csv"
     if not pred_path.exists():
-        raise SystemExit(f"Missing {pred_path}. Run: make eval")
+        raise SystemExit(f"Missing {pred_path}. Run: python -m src.eval")
 
     pred_df = pd.read_csv(pred_path)
-    unique_pred = pred_df["pred_label"].unique().tolist()
+    unique_pred = sorted(pred_df["pred_label"].unique().tolist())
 
     alerts = []
+    unmapped = []
     for at in unique_pred:
         row = _lookup(mapping, at)
-        alerts.append({
+        entry = {
             "predicted_attack": at,
             "attck_id": row.get("attck_id"),
             "attck_name": row.get("attck_name"),
             "ck_phase": row.get("ck_phase"),
             "justification": row.get("justification"),
             "mapped_from": row.get("mapped_from"),
-        })
+        }
+        alerts.append(entry)
+        if row.get("mapped_from") == "_default":
+            unmapped.append(at)
+
+    if unmapped:
+        print(f"[mitre] WARNING: {len(unmapped)} attack types used _default fallback mapping:")
+        for u in unmapped:
+            print(f"         - '{u}'")
+        print("         Add these to src/mitre_mapping.json for precise mappings.")
 
     out_json = out_dir / "alerts.json"
     with open(out_json, "w") as f:
@@ -82,6 +132,10 @@ def main() -> None:
     out_csv = out_dir / "alerts.csv"
     pd.DataFrame(alerts).to_csv(out_csv, index=False)
     print(f"[mitre] wrote {out_csv}")
+
+    # Summary
+    print(f"[mitre] {len(alerts)} unique predicted attack types mapped.")
+    print(f"[mitre] {len(alerts) - len(unmapped)} had precise mappings, {len(unmapped)} used fallback.")
 
 
 if __name__ == "__main__":
