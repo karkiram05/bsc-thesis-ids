@@ -124,5 +124,41 @@
     "attck_name": "Active Scanning",
     "ck_phase": "Reconnaissance",
     "justification": "Unmapped attack; generic Active Scanning (T1595) fallback."
+  },
+  "DoS GoldenEye": {
+    "attck_id": "T1498",
+    "attck_name": "Network Denial of Service",
+    "ck_phase": "Impact",
+    "justification": "GoldenEye keeps HTTP connections alive to exhaust Keep-Alive pool; T1498 Direct Network Flood."
+  },
+  "DoS Hulk": {
+    "attck_id": "T1498",
+    "attck_name": "Network Denial of Service",
+    "ck_phase": "Impact",
+    "justification": "Hulk floods HTTP with randomised GET requests to exhaust server resources; T1498."
+  },
+  "DoS Slowhttptest": {
+    "attck_id": "T1499",
+    "attck_name": "Endpoint Denial of Service",
+    "ck_phase": "Impact",
+    "justification": "SlowHTTPTest sends partial HTTP requests slowly to exhaust connection pool; T1499."
+  },
+  "DoS slowloris": {
+    "attck_id": "T1499",
+    "attck_name": "Endpoint Denial of Service",
+    "ck_phase": "Impact",
+    "justification": "Slowloris holds connections open with incomplete HTTP headers; T1499."
+  },
+  "FTP-Patator": {
+    "attck_id": "T1110.001",
+    "attck_name": "Brute Force: Password Guessing",
+    "ck_phase": "Credential Access",
+    "justification": "FTP-Patator performs dictionary-based password guessing against FTP (port 21); T1110.001."
+  },
+  "SSH-Patator": {
+    "attck_id": "T1110.001",
+    "attck_name": "Brute Force: Password Guessing",
+    "ck_phase": "Credential Access",
+    "justification": "SSH-Patator performs dictionary-based password guessing against SSH (port 22); T1110.001."
   }
 }

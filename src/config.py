@@ -1,7 +1,5 @@
 """Shared config: paths, leakage columns, split and model defaults."""
-
 from __future__ import annotations
-
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -12,9 +10,7 @@ PROCESSED_DIR = ROOT / "data" / "processed" / "cicids2017"
 DATA_FILE = PROCESSED_DIR / "all_clean.parquet"
 META_FILE = PROCESSED_DIR / "meta.md"
 
-# Leakage / redundant columns (CICFlowMeter-derived rates from duration + totals)
-# Flow Bytes/s = total bytes / duration; Flow Packets/s = total packets / duration.
-# Excluding these avoids shortcut learning and leakage.
+# Leakage columns — CICFlowMeter-derived rates, exclude to avoid shortcut learning
 LEAKAGE_COLUMNS = frozenset({
     "Flow Bytes/s",
     "Flow Packets/s",
@@ -22,33 +18,36 @@ LEAKAGE_COLUMNS = frozenset({
     "Bwd Packets/s",
 })
 
-# Non-feature columns (metadata, targets, splits, hashes)
-# IMPORTANT: row_hash must be here — it is a hash of the feature vector and would
-# give the model a perfect lookup key if included as a feature.
+# Non-feature columns — never feed these to a model
 NON_FEATURE = frozenset({
     "Label",
     "is_attack",
-    "attack_type",   # normalized multi-class label
+    "attack_type",
     "day",
     "source_file",
     "split",
     "split_day",
     "split_strat",
-    "row_hash",      # hash of feature row — must never be a model input
+    "row_hash",
 })
 
-# Day-based split assignment
+# Day split:
+# Train = Mon-Wed: Benign, DoS variants, FTP/SSH brute force, Heartbleed
+# Test  = Thu:     Benign, Web Attacks (Brute Force, SQLi, XSS), Infiltration
+# Val   = Fri:     Benign, Bot, DDoS, PortScan  (OOD probe — very different)
+# This means test shares Benign with train but has unseen attack types.
+# The performance drop from strat->day split is the generalisation finding.
 DAY_TO_SPLIT = {
     "Monday": "train",
     "Tuesday": "train",
     "Wednesday": "train",
-    "Thursday": "val",
-    "Friday": "test",
+    "Thursday": "test",
+    "Friday": "val",
 }
 
 RNG = 42
 
-# Outputs
+# Output dirs
 REPORTS_DIR = ROOT / "reports"
 BASELINES_DIR = REPORTS_DIR / "baselines"
 MODELS_DIR = ROOT / "models"
@@ -56,7 +55,7 @@ METRICS_DIR = REPORTS_DIR / "metrics"
 FIGURES_DIR = ROOT / "reports" / "figures"
 ALERTS_DIR = REPORTS_DIR / "alerts"
 
-# Train/eval split column names
+# Split column names
 SPLIT_COL_DAY = "split_day"
 SPLIT_COL_STRAT = "split_strat"
-DEFAULT_SPLIT_COL = SPLIT_COL_DAY  # day-based is the realistic one
+DEFAULT_SPLIT_COL = SPLIT_COL_DAY
