@@ -140,7 +140,7 @@ def main() -> None:
     rf.fit(Xt_s, yt)
     models["random_forest"] = (rf, Xt_s, Xv_s, Xs_s)
 
-    # XGBoost (calibrated on val set)
+    # XGBoost (raw, no calibration wrapper)
     xgb_raw = xgb.XGBClassifier(
         n_estimators=200, max_depth=8, learning_rate=0.1,
         eval_metric="logloss", verbosity=0,
@@ -148,12 +148,18 @@ def main() -> None:
         random_state=RNG, n_jobs=-1,
     )
     xgb_raw.fit(Xt_s, yt)
-
-    # Calibrate using val set
-    xgb_cal = CalibratedClassifierCV(xgb_raw, method="isotonic", cv="prefit")
-    xgb_cal.fit(Xv_s, yv)
     models["xgboost"] = (xgb_raw, Xt_s, Xv_s, Xs_s)
-    models["xgboost_calibrated"] = (xgb_cal, Xt_s, Xv_s, Xs_s)
+
+    # XGBoost calibrated: train fresh on val set with cross-val isotonic calibration
+    xgb_for_cal = xgb.XGBClassifier(
+        n_estimators=200, max_depth=8, learning_rate=0.1,
+        eval_metric="logloss", verbosity=0,
+        scale_pos_weight=float((yv == 0).sum()) / float((yv == 1).sum()),
+        random_state=RNG, n_jobs=-1,
+    )
+    xgb_cal = CalibratedClassifierCV(xgb_for_cal, method="isotonic", cv=3)
+    xgb_cal.fit(Xv_s, yv)
+    models["xgboost_calibrated"] = (xgb_cal, Xv_s, Xv_s, Xs_s)
 
     # Save binary scaler and models
     bin_models_dir = Path(args.models_dir) / f"binary_{args.split}"
