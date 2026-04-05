@@ -21,7 +21,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _run(cmd: list[str], dry_run: bool = False) -> int:
@@ -107,6 +107,7 @@ def main() -> None:
     # Steps 4-8: Per split
     for split in splits:
         models_dir = f"models/baseline_{split}"
+        binary_models_dir = f"models/binary_{split}"
         metrics_dir = f"reports/metrics_{split}"
         binary_dir = f"reports/metrics_{split}_binary"
         alerts_dir = f"reports/alerts_{split}"
@@ -127,9 +128,16 @@ def main() -> None:
         )
 
         step(
+            py + ["-m", "src.train_binary",
+                  "--split", split,
+                  "--out-dir", binary_models_dir] + bl,
+            f"train_binary_{split}"
+        )
+
+        step(
             py + ["-m", "src.eval_binary",
                   "--split", split,
-                  "--models-dir", models_dir,
+                  "--models-dir", "models",
                   "--out-dir", binary_dir],
             f"eval_binary_{split}"
         )
