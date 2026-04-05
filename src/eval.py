@@ -58,11 +58,27 @@ def main():
     sub   = df.loc[df[split_col] == "test"]
     y_raw = sub["attack_type"].astype(str)
     X     = sub[feat].copy()
-    y     = le.transform(y_raw)
     X_s   = scaler.transform(X)
 
-    n_classes  = len(le.classes_)
-    class_names = list(le.classes_)
+    known_classes = list(le.classes_)
+    known_to_idx = {c: i for i, c in enumerate(known_classes)}
+    unseen_mask = ~y_raw.isin(known_classes)
+    n_unseen = int(unseen_mask.sum())
+
+    if n_unseen > 0:
+        unseen_labels = sorted(y_raw[unseen_mask].unique().tolist())
+        print(
+            f"[warn] test split contains {n_unseen} rows with labels unseen in training: {unseen_labels}. "
+            "These rows are evaluated as an explicit __unseen__ class with expected low recall."
+        )
+        unknown_idx = len(known_classes)
+        y = np.array([known_to_idx.get(lbl, unknown_idx) for lbl in y_raw], dtype=np.int64)
+        class_names = known_classes + ["__unseen__"]
+    else:
+        y = le.transform(y_raw)
+        class_names = known_classes
+
+    n_classes  = len(class_names)
 
     remap_path      = models_dir / "xgboost_label_remap.json"
     xgb_train_classes = None
@@ -97,6 +113,12 @@ def main():
         else:
             pred  = raw_pred
             proba = raw_proba
+
+        # If evaluation includes explicit unseen class, pad probabilities with zero column.
+        if proba is not None and proba.shape[1] < n_classes:
+            padded = np.zeros((proba.shape[0], n_classes), dtype=np.float64)
+            padded[:, :proba.shape[1]] = proba
+            proba = padded
 
         pr, rc, f1, sup = precision_recall_fscore_support(
             y, pred, labels=np.arange(n_classes), zero_division=0)
@@ -189,7 +211,7 @@ def main():
         pd.DataFrame(cm, index=class_names, columns=class_names).to_csv(
             out_dir / f"confusion_matrix_{key}.csv")
 
-        pred_labels = le.inverse_transform(pred)
+        pred_labels = np.array([class_names[i] if 0 <= i < len(class_names) else "__unseen__" for i in pred], dtype=object)
         pd.DataFrame({
             "true_label": y_raw.values,
             "pred_label": pred_labels,
@@ -247,7 +269,8 @@ def main():
 
 def auc_from_arrays(fpr, tpr):
     """Trapezoid AUC — avoids sklearn import duplication."""
-    return float(np.trapz(tpr, fpr))
+    _trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz", None)
+    return float(_trapz(tpr, fpr))
 
 
 if __name__ == "__main__":

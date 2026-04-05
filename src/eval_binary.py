@@ -1,19 +1,11 @@
 """Binary IDS evaluation: benign vs attack.
 
-Trains a fresh binary classifier (and optionally re-uses the multi-class
-model's probabilities) on the same data and split.
-
-Outputs (in --out-dir):
-  binary_metrics.json          — AUC, PR-AUC, Brier, threshold table
-  binary_classification_report.txt
-  binary_confusion_matrix.csv
-  binary_roc_curve.csv         — FPR / TPR / threshold (for plotting)
-  binary_pr_curve.csv          — precision / recall / threshold
-  binary_threshold_report.txt  — table: threshold / precision / recall / F1 / FPR
+Evaluation-only script: loads saved binary models and evaluates on test split.
+Thresholds are selected on validation split and then applied once on test.
 
 Usage:
-  python -m src.eval_binary --split strat --out-dir reports/metrics_strat_binary
-  python -m src.eval_binary --split day   --out-dir reports/metrics_day_binary
+  python -m src.train_binary --split strat --out-dir models/binary_strat
+  python -m src.eval_binary  --split strat --models-dir models --out-dir reports/metrics_strat_binary
 """
 
 from __future__ import annotations
@@ -25,9 +17,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.calibration import calibration_curve, CalibratedClassifierCV
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
+from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
     average_precision_score,
     brier_score_loss,
@@ -38,15 +28,11 @@ from sklearn.metrics import (
     roc_auc_score,
     roc_curve,
 )
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-import xgboost as xgb
 
 from src.config import (
     DATA_FILE,
     MODELS_DIR,
     NON_FEATURE,
-    RNG,
     SPLIT_COL_DAY,
     SPLIT_COL_STRAT,
 )
@@ -105,7 +91,7 @@ def main() -> None:
     if not DATA_FILE.exists():
         raise SystemExit(f"Missing {DATA_FILE}. Run: python -m src.prepare_data")
 
-    print(f"[binary_eval] loading data ...")
+    print("[binary_eval] loading data ...")
     df = pd.read_parquet(DATA_FILE)
     Xt, yt, Xv, yv, Xs, ys, feat = _load_binary_splits(df, split_col)
 
@@ -113,65 +99,42 @@ def main() -> None:
           f"val={len(yv)} (attack={yv.sum()}) | "
           f"test={len(ys)} (attack={ys.sum()})")
 
-    scaler = StandardScaler()
-    Xt_s = scaler.fit_transform(Xt)
+    bin_models_dir = Path(args.models_dir) / f"binary_{args.split}"
+    if not bin_models_dir.exists():
+        raise SystemExit(
+            f"Missing {bin_models_dir}. Run train first: "
+            f"python -m src.train_binary --split {args.split} --out-dir {bin_models_dir}"
+        )
+    scaler_path = bin_models_dir / "scaler.joblib"
+    if not scaler_path.exists():
+        raise SystemExit(f"Missing {scaler_path}. Re-run src.train_binary.")
+    scaler = joblib.load(scaler_path)
     Xv_s = scaler.transform(Xv)
     Xs_s = scaler.transform(Xs)
 
-    # --- Train binary models ---
-    models = {}
+    # --- Load trained binary models (evaluation only) ---
+    models: dict[str, tuple[object, pd.DataFrame | np.ndarray, pd.DataFrame | np.ndarray]] = {}
+    for key in ["logreg", "random_forest", "xgboost"]:
+        p = bin_models_dir / f"{key}.joblib"
+        if not p.exists():
+            print(f"[binary_eval] skipping {key} (missing {p})")
+            continue
+        model = joblib.load(p)
+        if key == "logreg":
+            models[key] = (model, Xv, Xs)
+        else:
+            models[key] = (model, Xv_s, Xs_s)
 
-    # Logistic Regression
-    lr = Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf", LogisticRegression(
-            solver="saga", max_iter=2000, tol=1e-3,
-            class_weight="balanced", random_state=RNG,
-        )),
-    ])
-    lr.fit(Xt, yt)
-    models["logreg"] = (lr, Xt, Xv, Xs)
-
-    # Random Forest
-    rf = RandomForestClassifier(
-        n_estimators=200, max_depth=24, max_features="sqrt",
-        class_weight="balanced_subsample", random_state=RNG, n_jobs=-1,
-    )
-    rf.fit(Xt_s, yt)
-    models["random_forest"] = (rf, Xt_s, Xv_s, Xs_s)
-
-    # XGBoost (raw, no calibration wrapper)
-    xgb_raw = xgb.XGBClassifier(
-        n_estimators=200, max_depth=8, learning_rate=0.1,
-        eval_metric="logloss", verbosity=0,
-        scale_pos_weight=float((yt == 0).sum()) / float((yt == 1).sum()),
-        random_state=RNG, n_jobs=-1,
-    )
-    xgb_raw.fit(Xt_s, yt)
-    models["xgboost"] = (xgb_raw, Xt_s, Xv_s, Xs_s)
-
-    # XGBoost calibrated: train fresh on val set with cross-val isotonic calibration
-    xgb_for_cal = xgb.XGBClassifier(
-        n_estimators=200, max_depth=8, learning_rate=0.1,
-        eval_metric="logloss", verbosity=0,
-        scale_pos_weight=float((yv == 0).sum()) / float((yv == 1).sum()),
-        random_state=RNG, n_jobs=-1,
-    )
-    xgb_cal = CalibratedClassifierCV(xgb_for_cal, method="isotonic", cv=3)
-    xgb_cal.fit(Xv_s, yv)
-    models["xgboost_calibrated"] = (xgb_cal, Xv_s, Xv_s, Xs_s)
-
-    # Save binary scaler and models
-    bin_models_dir = Path(args.models_dir) / f"binary_{args.split}"
-    bin_models_dir.mkdir(parents=True, exist_ok=True)
-    joblib.dump(scaler, bin_models_dir / "scaler.joblib")
-    for name, (m, *_) in models.items():
-        joblib.dump(m, bin_models_dir / f"{name}.joblib")
+    if not models:
+        raise SystemExit(
+            f"No binary model files found in {bin_models_dir}. "
+            "Run src.train_binary before src.eval_binary."
+        )
 
     # --- Evaluate ---
     all_results = {}
 
-    for key, (model, X_tr, X_val, X_test) in models.items():
+    for key, (model, X_val, X_test) in models.items():
         proba = model.predict_proba(X_test)[:, 1]
 
         # Optimal threshold chosen on val, never test
@@ -248,19 +211,6 @@ def main() -> None:
         print(f"[{key}] ROC-AUC={roc_auc:.4f}  PR-AUC={pr_auc:.4f}  "
               f"Brier={brier:.4f}  thr={best_thr:.2f}  "
               f"P={p:.4f}  R={r:.4f}  F1={f1:.4f}  FPR={fpr_at_thr:.4f}")
-
-    # Calibration improvement summary
-    if "xgboost" in all_results and "xgboost_calibrated" in all_results:
-        before = all_results["xgboost"]["brier_score"]
-        after = all_results["xgboost_calibrated"]["brier_score"]
-        all_results["calibration_improvement"] = {
-            "xgboost_brier_before": before,
-            "xgboost_brier_after": after,
-            "delta": round(after - before, 4),
-            "note": "Negative delta means calibration improved (lower Brier = better).",
-        }
-        print(f"[calibration] Brier before={before:.4f}  after={after:.4f}  "
-              f"delta={after-before:+.4f}")
 
     with open(out / "binary_metrics.json", "w") as f:
         json.dump(all_results, f, indent=2)

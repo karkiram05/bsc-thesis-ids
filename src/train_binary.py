@@ -27,8 +27,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-import xgboost as xgb
-
 from src.config import DATA_FILE, MODELS_DIR, NON_FEATURE, RNG, SPLIT_COL_DAY, SPLIT_COL_STRAT
 
 
@@ -123,7 +121,7 @@ def main() -> None:
 
     # XGBoost
     if not args.baseline_only:
-        # Helpful for imbalance
+        import xgboost as xgb
         n_pos = max(int(yt.sum()), 1)
         n_neg = max(int((yt == 0).sum()), 1)
         scale_pos_weight = n_neg / n_pos

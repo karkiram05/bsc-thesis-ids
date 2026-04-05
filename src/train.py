@@ -7,23 +7,59 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-import xgboost as xgb
-from src.config import DATA_FILE, MODELS_DIR, NON_FEATURE, RNG, SPLIT_COL_DAY, SPLIT_COL_STRAT
+from src.config import (
+    DATA_FILE,
+    LEAKAGE_COLUMNS,
+    MODELS_DIR,
+    NON_FEATURE,
+    RNG,
+    SPLIT_COL_DAY,
+    SPLIT_COL_STRAT,
+)
 
 def _feature_cols(df):
     return [c for c in df.columns if c not in NON_FEATURE]
 
+def _safe_transform(le: LabelEncoder, labels: pd.Series) -> np.ndarray:
+    vals = labels.astype(str)
+    known = set(le.classes_.tolist())
+    y = np.full(len(vals), -1, dtype=np.int64)
+    mask = vals.isin(known)
+    if mask.any():
+        y[mask.to_numpy()] = le.transform(vals[mask])
+    return y
+
+
 def load_splits(df, split_col):
     feat = _feature_cols(df)
     assert feat, "No feature columns found"
+
+    train_labels = df.loc[df[split_col] == "train", "attack_type"].astype(str)
+    if len(train_labels) == 0:
+        raise SystemExit(f"No training rows found in {split_col}.")
+
     le = LabelEncoder()
-    le.fit(df["attack_type"].astype(str))
-    def part(s):
-        sub = df.loc[df[split_col] == s]
-        return sub[feat].copy(), np.asarray(le.transform(sub["attack_type"].astype(str)))
+    le.fit(train_labels)
+
+    def part(split_name):
+        sub = df.loc[df[split_col] == split_name]
+        y = _safe_transform(le, sub["attack_type"])
+        n_unseen = int((y == -1).sum())
+        if n_unseen > 0:
+            unseen = sorted(sub.loc[y == -1, "attack_type"].astype(str).unique().tolist())
+            print(
+                f"[warn] {split_name}: {n_unseen} rows have labels unseen in training; "
+                f"labels={unseen}"
+            )
+        return sub[feat].copy(), y
+
     Xt, yt = part("train")
     Xv, yv = part("val")
     Xs, ys = part("test")
+
+    if (yt == -1).any():
+        raise SystemExit("Training labels contain unseen-class marker; aborting.")
+
     return Xt, yt, Xv, yv, Xs, ys, le, feat
 
 def main():
@@ -39,6 +75,12 @@ def main():
     if not DATA_FILE.exists():
         raise SystemExit(f"Missing {DATA_FILE}. Run: python -m src.prepare_data")
     df = pd.read_parquet(DATA_FILE)
+    present_leak = [c for c in df.columns if c in LEAKAGE_COLUMNS]
+    if present_leak:
+        raise SystemExit(
+            "Leakage columns are present in processed data. "
+            f"Rebuild dataset with src.prepare_data. Found: {present_leak}"
+        )
     for s in ["train", "val", "test"]:
         if (df[split_col] == s).sum() == 0:
             raise SystemExit(f"No '{s}' split in {split_col}.")
@@ -62,6 +104,7 @@ def main():
     models.append(("random_forest", rf))
     print("[train] RandomForest done.")
     if not args.baseline_only:
+        import xgboost as xgb
         print("[train] XGBoost ...")
         # For day split, training labels may not be contiguous 0..N-1.
         # Remap to contiguous for XGBoost, save mapping for eval to undo.
