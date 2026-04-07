@@ -11,7 +11,7 @@ Figures produced:
   - per_class_f1.png                      (per-class F1 heatmap with fixed legend)
   - roc_curves.png                        [NEW] per-class ROC/AUC, XGBoost OvR
   - pr_curves_minority.png               [NEW] PR curves for rare classes
-  - crossdataset_delta.png               [NEW] generalisation gap chart
+  - crosssplit_delta.png               [NEW] generalisation gap chart
   - attck_mapping_table.png              [NEW] ATT&CK mapping heatmap table
 """
 
@@ -496,7 +496,7 @@ def plot_pr_curves(full: dict, fdir: Path) -> None:
 # Figure 7 [NEW]: Cross-dataset generalisation delta
 # ---------------------------------------------------------------------------
 
-def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
+def plot_crosssplit_delta(fdir: Path, cross_metrics_path: Path) -> None:
     """
     Reads reports/metrics_day/metrics.json (day-based split as the harder eval)
     and compares to strat split, showing the generalisation gap.
@@ -509,7 +509,7 @@ def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
     day_path   = cross_metrics_path.parent.parent / "metrics_day"   / "metrics.json"
 
     if not strat_path.exists() or not day_path.exists():
-        print(f"[report] crossdataset_delta.png skipped — need both metrics_strat and metrics_day")
+        print(f"[report] crosssplit_delta.png skipped — need both metrics_strat and metrics_day")
         print(f"         Run: python -m src.train --split day && python -m src.eval --split day")
         return
 
@@ -519,7 +519,7 @@ def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
     # Use XGBoost if available, else best available model
     model_key = "xgboost" if "xgboost" in m_strat else next(iter(m_strat), None)
     if not model_key or model_key not in m_day:
-        print("[report] crossdataset_delta.png skipped — model not present in both splits")
+        print("[report] crosssplit_delta.png skipped — model not present in both splits")
         return
 
     s = m_strat[model_key]
@@ -576,7 +576,7 @@ def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
     fig.suptitle("Cross-split generalisation — CICIDS2017 stratified vs temporal day split",
                  color=TEXT, fontsize=12, y=1.02)
     plt.tight_layout()
-    out = fdir / "crossdataset_delta.png"
+    out = fdir / "crosssplit_delta.png"
     plt.savefig(out, dpi=180, bbox_inches="tight", facecolor=BG)
     plt.close()
     print(f"[report] wrote {out}")
@@ -815,7 +815,7 @@ def write_report(m: dict, out: Path, adir: Path) -> None:
         "| `per_class_f1.png` | Per-class F1 heatmap with severity legend |\n",
         "| `roc_curves.png` | Per-class ROC/AUC — XGBoost OvR |\n",
         "| `pr_curves_minority.png` | PR curves for minority classes (n < 500) |\n",
-        "| `crossdataset_delta.png` | Generalisation gap: strat vs day split |\n",
+        "| `crosssplit_delta.png` | Generalisation gap: strat vs day split |\n",
         "| `attck_mapping_table.png` | ATT&CK mapping heatmap with F1 and flow detectability |\n",
     ]
 
@@ -884,7 +884,7 @@ def main() -> None:
     plot_pr_curves(full, fdir)
 
     # Figure 7 [NEW]: Cross-dataset delta
-    plot_crossdataset_delta(fdir, mpath)
+    plot_crosssplit_delta(fdir, mpath)
 
     # Figure 8 [NEW]: ATT&CK mapping heatmap table
     plot_attck_mapping_table(full, fdir, adir)

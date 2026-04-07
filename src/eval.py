@@ -19,6 +19,11 @@ from src.config import DATA_FILE, MODELS_DIR, NON_FEATURE, METRICS_DIR
 MINORITY_THRESHOLD = 500
 
 
+def auc_from_arrays(fpr, tpr):
+    """Trapezoid AUC — avoids sklearn import duplication."""
+    return float(np.trapz(tpr, fpr))
+
+
 def _feature_cols(df):
     return [c for c in df.columns if c not in NON_FEATURE]
 
@@ -243,11 +248,6 @@ def main():
     print(f"[eval] wrote {out_dir / 'metrics.json'}")
     print(f"[eval] best model: {best_key} (macro F1={results[best_key]['macro_f1']:.4f})")
     print(f"[eval] roc_curve_data + pr_curve_data saved in metrics.json (used by report.py)")
-
-
-def auc_from_arrays(fpr, tpr):
-    """Trapezoid AUC — avoids sklearn import duplication."""
-    return float(np.trapz(tpr, fpr))
 
 
 if __name__ == "__main__":

@@ -146,7 +146,11 @@ def main() -> None:
         raise SystemExit(f"Unknown day values: {bad}")
     df["split"] = df["split_day"]
 
-    # Stratified split (by binary label)
+    # Stratified split (by binary label, not attack_type).
+    # Binary stratification preserves the overall attack/benign ratio but does NOT
+    # guarantee representation of all 15 attack sub-types in every fold.
+    # Rare classes (e.g. Heartbleed, ~11 rows) may have very few or zero test samples.
+    # Per-class support is reported in the classification report to make this transparent.
     y = df["is_attack"].astype(int)
     idx = df.index.to_numpy()
     test_size = 0.2233

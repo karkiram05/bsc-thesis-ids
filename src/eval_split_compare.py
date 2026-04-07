@@ -114,7 +114,7 @@ def main() -> None:
 
     lines.append("## 2. Day-based split results\n\n")
     lines.append(
-        "Train = Mon–Wed, Val = Thu, Test = Fri. **Test day is fully unseen during training.** "
+        "Train = Mon–Wed, Test = Thu, Val = Fri. **Test day is fully unseen during training.** "
         "Attack distributions and benign traffic patterns differ across days.\n\n"
     )
     for key in ["logreg", "random_forest", "xgboost"]:
