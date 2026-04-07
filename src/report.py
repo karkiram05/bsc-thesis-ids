@@ -48,13 +48,12 @@ PURPLE   = "#bc8cff"
 
 TACTIC_COLORS = {
     "Reconnaissance":      "#4e9af1",
+    "Discovery":           "#52b788",
     "Credential Access":   "#f4a261",
     "Initial Access":      "#e63946",
-    "Exploitation":        "#9b2226",
     "Execution":           "#ae2012",
     "Impact":              "#6d0022",
     "Command and Control": "#2d6a4f",
-    "Discovery":           "#52b788",
     None:                  "#adb5bd",
 }
 
@@ -67,9 +66,9 @@ ATTACK_TACTIC = {
     "DoS Slowhttptest":         "Impact",
     "DoS slowloris":            "Impact",
     "FTP-Patator":              "Credential Access",
-    "Heartbleed":               "Credential Access",
+    "Heartbleed":               "Initial Access",
     "Infiltration":             "Discovery",
-    "PortScan":                 "Reconnaissance",
+    "PortScan":                 "Discovery",
     "SSH-Patator":              "Credential Access",
     "Web Attack-Brute Force":   "Credential Access",
     "Web Attack-Sql Injection": "Initial Access",

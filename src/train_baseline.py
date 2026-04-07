@@ -1,5 +1,14 @@
+"""DEPRECATED: Early binary baseline script. Use src.train_binary instead.
+
+This script is kept for reference only. It has been superseded by
+train_binary.py (binary) and train.py (multi-class).
+
+FIX applied: added 'attack_type' to drop_cols to prevent label leakage.
+"""
+
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 import time
 
@@ -29,10 +38,12 @@ def load_split(df: pd.DataFrame, split_name: str):
     sub = df[df[SPLIT_COL] == split_name].copy()
     y = sub["is_attack"].astype(int).to_numpy()
 
-    # DO NOT let the model see row_hash (it can cheat)
+    # FIX: attack_type was missing from drop_cols — it encodes the label
+    # and would cause direct label leakage if fed as a feature.
     drop_cols = [
         "Label",
         "is_attack",
+        "attack_type",   # FIX: was missing, would leak label info
         "day",
         "source_file",
         "split",
@@ -102,6 +113,14 @@ def eval_binary(name: str, y_true: np.ndarray, pred: np.ndarray, proba: np.ndarr
 
 
 def main() -> None:
+    warnings.warn(
+        "train_baseline.py is DEPRECATED. Use src.train_binary for binary "
+        "classification or src.train for multi-class. This script is kept "
+        "for reference only.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     if not DATA.exists():
         raise SystemExit(f"Missing processed dataset: {DATA}. Run build_dataset.py first.")
 

@@ -90,19 +90,31 @@ def main():
     Xt, yt, Xv, yv, Xs, ys, le, feat = load_splits(df, split_col)
     n_classes = len(le.classes_)
     print(f"[load] train={len(yt)} val={len(yv)} test={len(ys)} features={len(feat)} classes={n_classes}")
+
+    # Scaler: saved for models that need it.
+    # NOTE: RF and XGBoost are tree-based and invariant to monotonic feature
+    # transforms.  We still save a scaler so eval.py has a consistent interface,
+    # but only LogReg actually requires it (via its internal Pipeline scaler).
     scaler = StandardScaler()
     Xt_s = scaler.fit_transform(Xt)
+
     models = []
+
+    # LogReg — uses its own internal scaler pipeline
     print("[train] LogReg ...")
     lr = Pipeline([("scaler", StandardScaler()), ("clf", LogisticRegression(solver="saga", max_iter=2000, tol=1e-3, class_weight="balanced", random_state=RNG))])
     lr.fit(Xt, yt)
     models.append(("logreg", lr))
     print("[train] LogReg done.")
+
+    # RandomForest — tree-based, does NOT need scaling.
+    # We feed raw features so feature importances are directly interpretable.
     print("[train] RandomForest ...")
     rf = RandomForestClassifier(n_estimators=200, max_depth=24, max_features="sqrt", class_weight="balanced_subsample", random_state=RNG, n_jobs=-1)
-    rf.fit(Xt_s, yt)
+    rf.fit(Xt, yt)  # FIX: use Xt (raw) instead of Xt_s (scaled)
     models.append(("random_forest", rf))
     print("[train] RandomForest done.")
+
     if not args.baseline_only:
         import xgboost as xgb
         print("[train] XGBoost ...")
@@ -112,13 +124,15 @@ def main():
         remap = {c: i for i, c in enumerate(train_classes)}
         reverse_remap = {i: c for c, i in remap.items()}
         yt_xgb = np.array([remap[v] for v in yt.tolist()], dtype=np.int32)
+        # XGBoost is tree-based — scaling is unnecessary, feed raw features.
         xgb_clf = xgb.XGBClassifier(n_estimators=200, max_depth=8, learning_rate=0.1,
             eval_metric="mlogloss", random_state=RNG, n_jobs=-1, verbosity=0)
-        xgb_clf.fit(Xt_s, yt_xgb)
+        xgb_clf.fit(Xt, yt_xgb)  # FIX: use Xt (raw) instead of Xt_s
         models.append(("xgboost", xgb_clf))
         with open(out / "xgboost_label_remap.json", "w") as f:
             json.dump({"train_classes": train_classes, "n_global_classes": n_classes}, f, indent=2)
         print("[train] XGBoost done.")
+
     joblib.dump(le, out / "label_encoder.joblib")
     joblib.dump(scaler, out / "scaler.joblib")
     with open(out / "feature_names.json", "w") as f:
