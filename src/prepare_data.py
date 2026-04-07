@@ -146,17 +146,33 @@ def main() -> None:
         raise SystemExit(f"Unknown day values: {bad}")
     df["split"] = df["split_day"]
 
-    # Stratified split (by binary label)
-    y = df["is_attack"].astype(int)
+    # ── Stratified split ──────────────────────────────────────────────
+    # FIX: Stratify on attack_type (multi-class) instead of is_attack
+    # (binary).  This ensures rare classes like Heartbleed (11 samples)
+    # are represented in every split, preventing degenerate folds where
+    # a class appears only in train or only in test.
+    y_strat = df["attack_type"].astype(str)
     idx = df.index.to_numpy()
     test_size = 0.2233
-    idx_tv, idx_te = train_test_split(idx, test_size=test_size, random_state=RNG, stratify=y)
-    y_tv = y.loc[idx_tv]
+    idx_tv, idx_te = train_test_split(
+        idx, test_size=test_size, random_state=RNG, stratify=y_strat
+    )
+    y_tv = y_strat.loc[idx_tv]
     val_size = 0.2023
-    _, idx_val = train_test_split(idx_tv, test_size=val_size, random_state=RNG, stratify=y_tv)
+    _, idx_val = train_test_split(
+        idx_tv, test_size=val_size, random_state=RNG, stratify=y_tv
+    )
     df["split_strat"] = "train"
     df.loc[idx_val, "split_strat"] = "val"
     df.loc[idx_te, "split_strat"] = "test"
+
+    # Verify every class appears in every strat split
+    for s in ["train", "val", "test"]:
+        present = set(df.loc[df["split_strat"] == s, "attack_type"].unique())
+        all_cls = set(df["attack_type"].unique())
+        missing_cls = all_cls - present
+        if missing_cls:
+            print(f"[WARN] split_strat {s} is missing classes: {sorted(missing_cls)}")
 
     df.to_parquet(DATA_FILE, index=False)
     print(f"[save] {DATA_FILE}")

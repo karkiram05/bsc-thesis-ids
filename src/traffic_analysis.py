@@ -58,7 +58,7 @@ MITRE = {
         "tactic": "Credential Access",
         "technique_id": "T1110.001",
         "technique": "Brute Force: Password Guessing",
-        "kill_chain": "Weaponization",
+        "kill_chain": "Credential Access",
         "soc_action": (
             "1. Identify source IP and block at perimeter firewall.\n"
             "2. Check FTP server logs for successful logins from same IP.\n"
@@ -75,7 +75,7 @@ MITRE = {
         "tactic": "Credential Access",
         "technique_id": "T1110.001",
         "technique": "Brute Force: Password Guessing",
-        "kill_chain": "Weaponization",
+        "kill_chain": "Credential Access",
         "soc_action": (
             "1. Block source IP at firewall after threshold (e.g. 10 failed attempts).\n"
             "2. Enable SSH key-only authentication — disable password auth.\n"
@@ -157,10 +157,10 @@ MITRE = {
         ),
     },
     "Heartbleed": {
-        "tactic": "Credential Access",
+        "tactic": "Initial Access",
         "technique_id": "T1190",
         "technique": "Exploit Public-Facing Application",
-        "kill_chain": "Exploitation",
+        "kill_chain": "Initial Access",
         "soc_action": (
             "1. IMMEDIATE: Patch OpenSSL to >=1.0.1g on all affected servers.\n"
             "2. Revoke and reissue ALL TLS certificates on affected hosts.\n"
@@ -179,7 +179,7 @@ MITRE = {
         "tactic": "Credential Access",
         "technique_id": "T1110.001",
         "technique": "Brute Force: Password Guessing",
-        "kill_chain": "Weaponization",
+        "kill_chain": "Credential Access",
         "soc_action": (
             "1. Enable account lockout after 5 failed login attempts.\n"
             "2. Deploy CAPTCHA on login forms.\n"
@@ -196,7 +196,7 @@ MITRE = {
         "tactic": "Initial Access",
         "technique_id": "T1190",
         "technique": "Exploit Public-Facing Application",
-        "kill_chain": "Exploitation",
+        "kill_chain": "Initial Access",
         "soc_action": (
             "1. Review WAF logs for SQL metacharacter patterns (', --, UNION SELECT).\n"
             "2. Check database query logs for unusual SELECT statements.\n"
@@ -213,7 +213,7 @@ MITRE = {
         "tactic": "Execution",
         "technique_id": "T1059.007",
         "technique": "Command and Scripting Interpreter: JavaScript",
-        "kill_chain": "Exploitation",
+        "kill_chain": "Execution",
         "soc_action": (
             "1. Implement Content-Security-Policy headers on all web pages.\n"
             "2. Audit application for missing output encoding.\n"
@@ -230,7 +230,7 @@ MITRE = {
         "tactic": "Discovery",
         "technique_id": "T1046",
         "technique": "Network Service Discovery",
-        "kill_chain": "Reconnaissance",
+        "kill_chain": "Discovery",
         "soc_action": (
             "1. Identify internal host performing the scan and isolate it.\n"
             "2. Check for malware on the scanning host — infiltration implies compromise.\n"
@@ -279,10 +279,10 @@ MITRE = {
         ),
     },
     "PortScan": {
-        "tactic": "Reconnaissance",
+        "tactic": "Discovery",
         "technique_id": "T1046",
         "technique": "Network Service Discovery",
-        "kill_chain": "Reconnaissance",
+        "kill_chain": "Discovery",
         "soc_action": (
             "1. Block source IP at perimeter — port scanning precedes attacks.\n"
             "2. Log the scan for threat intelligence — record source, timing, ports.\n"
@@ -323,16 +323,14 @@ KEY_FEATURES = [
 
 # ATT&CK tactic colour coding (for plots)
 TACTIC_COLORS = {
-    "Reconnaissance":   "#4e9af1",
-    "Weaponization":    "#f4a261",
-    "Credential Access":"#e76f51",
-    "Initial Access":   "#e63946",
-    "Exploitation":     "#9b2226",
-    "Execution":        "#ae2012",
-    "Impact":           "#6d0022",
+    "Reconnaissance":      "#4e9af1",
+    "Discovery":           "#52b788",
+    "Credential Access":   "#e76f51",
+    "Initial Access":      "#e63946",
+    "Execution":           "#ae2012",
+    "Impact":              "#6d0022",
     "Command and Control": "#2d6a4f",
-    "Discovery":        "#52b788",
-    None:               "#adb5bd",
+    None:                  "#adb5bd",
 }
 
 

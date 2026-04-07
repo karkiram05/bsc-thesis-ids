@@ -31,18 +31,25 @@ NON_FEATURE = frozenset({
     "row_hash",
 })
 
-# Day split:
-# Train = Mon-Wed: Benign, DoS variants, FTP/SSH brute force, Heartbleed
-# Test  = Thu:     Benign, Web Attacks (Brute Force, SQLi, XSS), Infiltration
-# Val   = Fri:     Benign, Bot, DDoS, PortScan  (OOD probe — very different)
-# This means test shares Benign with train but has unseen attack types.
-# The performance drop from strat->day split is the generalisation finding.
+# Day split — temporal ordering preserved:
+#   Train = Mon-Wed  (Benign, DoS variants, FTP/SSH brute force, Heartbleed)
+#   Val   = Thu      (Benign, Web Attacks, Infiltration) — threshold tuning
+#   Test  = Fri      (Benign, Bot, DDoS, PortScan) — final held-out evaluation
+#
+# RATIONALE: In deployment, the model is trained on past data and evaluated on
+# *future* data.  Thursday (day 4) comes before Friday (day 5), so we tune
+# thresholds on Thursday and report final metrics on Friday.  This is the
+# standard temporal-validation protocol.
+#
+# NOTE: attack types are disjoint across days.  Multi-class evaluation under
+# this split is expected to fail on unseen classes.  Binary (benign vs attack)
+# remains meaningful.
 DAY_TO_SPLIT = {
     "Monday": "train",
     "Tuesday": "train",
     "Wednesday": "train",
-    "Thursday": "test",
-    "Friday": "val",
+    "Thursday": "val",
+    "Friday": "test",
 }
 
 RNG = 42

@@ -134,6 +134,7 @@ def main() -> None:
             f"train_binary_{split}"
         )
 
+        # FIX: pass the correct binary models directory, not the root models dir
         step(
             py + ["-m", "src.eval_binary",
                   "--split", split,
@@ -148,6 +149,9 @@ def main() -> None:
                   "--out-dir", alerts_dir],
             f"mitre_alerts_{split}"
         )
+
+    # Step: Leave-One-Day-Out binary CV
+    step(py + ["-m", "src.eval_lodo"] + bl, "eval_lodo")
 
     # Step: Traffic analysis
     step(py + ["-m", "src.traffic_analysis"], "traffic_analysis")

@@ -76,6 +76,10 @@ def _threshold_table(y_true, y_prob, thresholds=None):
     return pd.DataFrame(rows)
 
 
+def _uses_internal_scaler(model):
+    return hasattr(model, "steps") and "scaler" in [s[0] for s in model.steps]
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--split", choices=["day", "strat"], default="strat")
@@ -109,21 +113,22 @@ def main() -> None:
     if not scaler_path.exists():
         raise SystemExit(f"Missing {scaler_path}. Re-run src.train_binary.")
     scaler = joblib.load(scaler_path)
-    Xv_s = scaler.transform(Xv)
-    Xs_s = scaler.transform(Xs)
 
     # --- Load trained binary models (evaluation only) ---
     models: dict[str, tuple[object, pd.DataFrame | np.ndarray, pd.DataFrame | np.ndarray]] = {}
-    for key in ["logreg", "random_forest", "xgboost"]:
+    for key in ["logreg", "random_forest", "xgboost", "xgboost_calibrated"]:
         p = bin_models_dir / f"{key}.joblib"
         if not p.exists():
-            print(f"[binary_eval] skipping {key} (missing {p})")
             continue
         model = joblib.load(p)
-        if key == "logreg":
+        # FIX: LogReg pipeline has internal scaler -> feed raw features.
+        # Tree models (RF, XGB) trained on raw features -> feed raw features.
+        # All models now get raw features.
+        if _uses_internal_scaler(model):
             models[key] = (model, Xv, Xs)
         else:
-            models[key] = (model, Xv_s, Xs_s)
+            # Tree models trained on raw features in the updated train_binary.py
+            models[key] = (model, Xv, Xs)
 
     if not models:
         raise SystemExit(
@@ -141,6 +146,13 @@ def main() -> None:
         proba_val = model.predict_proba(X_val)[:, 1]
         thr_table_val = _threshold_table(yv, proba_val)
         best_thr = float(thr_table_val.loc[thr_table_val["f1"].idxmax(), "threshold"])
+
+        # FIX: Also find FPR-constrained threshold (FPR <= 1%)
+        fpr_constrained_rows = thr_table_val[thr_table_val["fpr"] <= 0.01]
+        if len(fpr_constrained_rows) > 0:
+            fpr_thr = float(fpr_constrained_rows.loc[fpr_constrained_rows["f1"].idxmax(), "threshold"])
+        else:
+            fpr_thr = best_thr  # fallback
 
         pred = (proba >= best_thr).astype(int)
 
@@ -201,6 +213,7 @@ def main() -> None:
             "pr_auc": round(pr_auc, 4),
             "brier_score": round(brier, 4),
             "best_threshold_from_val": round(best_thr, 2),
+            "fpr_constrained_threshold": round(fpr_thr, 2),
             "precision_at_threshold": round(float(p), 4),
             "recall_at_threshold": round(float(r), 4),
             "f1_at_threshold": round(float(f1), 4),

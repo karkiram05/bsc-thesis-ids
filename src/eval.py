@@ -4,7 +4,8 @@ Changes vs original:
   - Saves roc_curve_data per class (FPR/TPR arrays + AUC) into metrics.json
   - Saves pr_curve_data for minority classes (precision/recall arrays + AP) into metrics.json
   - Both are used by report.py to generate roc_curves.png and pr_curves_minority.png
-  - Everything else is identical to the original
+  - FIX: ROC-AUC computed only on classes present in test (skips unseen)
+  - FIX: scaling applied only to models that need it
 """
 from __future__ import annotations
 import argparse, json
@@ -25,6 +26,22 @@ def _feature_cols(df):
 
 def _uses_internal_scaler(model):
     return hasattr(model, "steps") and "scaler" in [s[0] for s in model.steps]
+
+
+def _is_tree_model(model):
+    """Return True if model is tree-based (RF, XGBoost) and doesn't need scaling."""
+    base = model
+    if hasattr(model, "steps"):
+        for _, step in model.steps:
+            base = step
+    cls_name = type(base).__name__.lower()
+    return any(t in cls_name for t in ["forest", "xgb", "tree", "gradient"])
+
+
+def auc_from_arrays(fpr, tpr):
+    """Trapezoid AUC — avoids sklearn import duplication."""
+    _trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz", None)
+    return float(_trapz(tpr, fpr))
 
 
 def main():
@@ -97,7 +114,18 @@ def main():
 
         print(f"[eval] evaluating {key} ...")
         model    = joblib.load(path)
-        X_in     = X if _uses_internal_scaler(model) else X_s
+
+        # FIX: LogReg pipeline has internal scaler, use raw X.
+        # Tree models (RF, XGB) trained on raw features, also use raw X.
+        # Only apply external scaler if model was trained on scaled data
+        # AND doesn't have its own scaler.
+        if _uses_internal_scaler(model):
+            X_in = X  # pipeline handles scaling internally
+        elif _is_tree_model(model):
+            X_in = X  # tree models don't need scaling
+        else:
+            X_in = X_s  # fallback: use external scaler
+
         raw_pred = model.predict(X_in)
         raw_proba = model.predict_proba(X_in) if hasattr(model, "predict_proba") else None
 
@@ -140,21 +168,59 @@ def main():
             "confusion_labels": class_names,
         }
 
-        # ── ROC AUC + ROC curve data (new) ───────────────────────────────
+        # ── ROC AUC + ROC curve data ─────────────────────────────────────
         if proba is not None and n_classes > 2:
-            try:
-                rec["roc_auc_ovr"] = float(
-                    roc_auc_score(y, proba, multi_class="ovr", average="macro"))
-                rec["roc_auc_ovo"] = float(
-                    roc_auc_score(y, proba, multi_class="ovo", average="macro"))
-            except Exception:
-                rec["roc_auc_ovr"] = rec["roc_auc_ovo"] = None
+            # Only compute ROC-AUC on classes that have support in test.
+            classes_with_support = [i for i in range(n_classes) if sup[i] > 0]
 
             try:
-                rec["pr_auc_macro"] = float(np.mean([
-                    average_precision_score((y == i).astype(int), proba[:, i])
-                    for i in range(n_classes) if (y == i).sum() > 0
-                ]))
+                if len(classes_with_support) == 2:
+                    # Exactly 2 classes with support → use binary ROC-AUC
+                    # Pick the higher-indexed class as "positive"
+                    pos_cls = classes_with_support[1]
+                    y_bin = (y == pos_cls).astype(int)
+                    rec["roc_auc_ovr"] = float(roc_auc_score(y_bin, proba[:, pos_cls]))
+                elif len(classes_with_support) > 2:
+                    # 3+ classes: remap y to contiguous 0..K-1 matching filtered proba columns
+                    mask = np.isin(y, classes_with_support)
+                    old_to_new = {old: new for new, old in enumerate(classes_with_support)}
+                    y_remapped = np.array([old_to_new[v] for v in y[mask]], dtype=np.int64)
+                    proba_filtered = proba[mask][:, classes_with_support]
+                    rec["roc_auc_ovr"] = float(
+                        roc_auc_score(y_remapped, proba_filtered,
+                                      multi_class="ovr", average="macro"))
+                else:
+                    rec["roc_auc_ovr"] = None
+            except Exception as e:
+                print(f"[warn] ROC-AUC OvR failed for {key}: {e}")
+                rec["roc_auc_ovr"] = None
+
+            try:
+                if len(classes_with_support) == 2:
+                    pos_cls = classes_with_support[1]
+                    y_bin = (y == pos_cls).astype(int)
+                    rec["roc_auc_ovo"] = float(roc_auc_score(y_bin, proba[:, pos_cls]))
+                elif len(classes_with_support) > 2:
+                    mask = np.isin(y, classes_with_support)
+                    old_to_new = {old: new for new, old in enumerate(classes_with_support)}
+                    y_remapped = np.array([old_to_new[v] for v in y[mask]], dtype=np.int64)
+                    proba_filtered = proba[mask][:, classes_with_support]
+                    rec["roc_auc_ovo"] = float(
+                        roc_auc_score(y_remapped, proba_filtered,
+                                      multi_class="ovo", average="macro"))
+                else:
+                    rec["roc_auc_ovo"] = None
+            except Exception as e:
+                print(f"[warn] ROC-AUC OvO failed for {key}: {e}")
+                rec["roc_auc_ovo"] = None
+
+            try:
+                ap_scores = []
+                for i in range(n_classes):
+                    if (y == i).sum() > 0:
+                        ap_scores.append(
+                            average_precision_score((y == i).astype(int), proba[:, i]))
+                rec["pr_auc_macro"] = float(np.mean(ap_scores)) if ap_scores else None
             except Exception:
                 rec["pr_auc_macro"] = None
 
@@ -265,12 +331,6 @@ def main():
     print(f"[eval] wrote {out_dir / 'metrics.json'}")
     print(f"[eval] best model: {best_key} (macro F1={results[best_key]['macro_f1']:.4f})")
     print(f"[eval] roc_curve_data + pr_curve_data saved in metrics.json (used by report.py)")
-
-
-def auc_from_arrays(fpr, tpr):
-    """Trapezoid AUC — avoids sklearn import duplication."""
-    _trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz", None)
-    return float(_trapz(tpr, fpr))
 
 
 if __name__ == "__main__":

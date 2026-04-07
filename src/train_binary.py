@@ -87,9 +87,9 @@ def main() -> None:
         f"pos_rate_train={yt.mean():.4f}"
     )
 
-    # For RF/XGB we feed scaled features to be consistent with your multiclass pipeline.
+    # Scaler saved for interface consistency; tree models don't need it.
     scaler = StandardScaler()
-    Xt_s = scaler.fit_transform(Xt)
+    scaler.fit(Xt)
 
     models: list[tuple[str, object]] = []
 
@@ -107,7 +107,7 @@ def main() -> None:
     lr.fit(Xt, yt)
     models.append(("logreg", lr))
 
-    # RandomForest
+    # RandomForest — tree-based, raw features
     rf = RandomForestClassifier(
         n_estimators=300,
         max_depth=24,
@@ -116,10 +116,10 @@ def main() -> None:
         random_state=RNG,
         n_jobs=-1,
     )
-    rf.fit(Xt_s, yt)
+    rf.fit(Xt, yt)  # FIX: raw features, not scaled
     models.append(("random_forest", rf))
 
-    # XGBoost
+    # XGBoost — tree-based, raw features
     if not args.baseline_only:
         import xgboost as xgb
         n_pos = max(int(yt.sum()), 1)
@@ -139,7 +139,7 @@ def main() -> None:
             n_jobs=-1,
             scale_pos_weight=scale_pos_weight,
         )
-        xgb_clf.fit(Xt_s, yt, verbose=False)
+        xgb_clf.fit(Xt, yt, verbose=False)  # FIX: raw features
         models.append(("xgboost", xgb_clf))
 
     # Save artifacts
