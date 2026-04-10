@@ -221,7 +221,7 @@ def main() -> None:
         # FPR: all folds (including benign-only)
         fpr_vals = mdf["fpr"].values
         fpr_mean = float(np.mean(fpr_vals))
-        fpr_std = float(np.std(fpr_vals))
+        fpr_std = float(np.std(fpr_vals, ddof=1)) if len(fpr_vals) > 1 else 0.0
 
         # ROC, PR, F1: only folds with attacks
         attack_folds = mdf[mdf["roc_auc"].notna()]
@@ -236,11 +236,11 @@ def main() -> None:
                 "n_folds": len(DAYS),
                 "n_attack_folds": n_attack_folds,
                 "roc_auc_mean": round(float(np.mean(roc_vals)), 4),
-                "roc_auc_std": round(float(np.std(roc_vals)), 4),
+                "roc_auc_std": round(float(np.std(roc_vals, ddof=1)) if len(roc_vals) > 1 else 0.0, 4),
                 "pr_auc_mean": round(float(np.mean(pr_vals)), 4),
-                "pr_auc_std": round(float(np.std(pr_vals)), 4),
+                "pr_auc_std": round(float(np.std(pr_vals, ddof=1)) if len(pr_vals) > 1 else 0.0, 4),
                 "f1_mean": round(float(np.mean(f1_vals)), 4),
-                "f1_std": round(float(np.std(f1_vals)), 4),
+                "f1_std": round(float(np.std(f1_vals, ddof=1)) if len(f1_vals) > 1 else 0.0, 4),
                 "fpr_mean": round(fpr_mean, 6),
                 "fpr_std": round(fpr_std, 6),
             })

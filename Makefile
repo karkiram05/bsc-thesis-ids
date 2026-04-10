@@ -1,4 +1,4 @@
-.PHONY: data train eval report all clean multiclass-baseline leakage-check eval-split-compare
+.PHONY: data train eval report all clean leakage-check eval-split-compare
 
 PY ?= python
 SPLIT ?= day
@@ -17,10 +17,6 @@ report: eval
 	$(PY) -m src.report
 
 all: report
-
-# Multi-class baseline (LogReg + RF), stratified split -> reports/baselines/multiclass_report.md
-multiclass-baseline: data
-	$(PY) -m src.train_multiclass_baseline --split strat
 
 # Leakage check (exact + near duplicates) -> reports/leakage_check.md
 leakage-check: data
