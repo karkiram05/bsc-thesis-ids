@@ -124,11 +124,9 @@ def main() -> None:
         # FIX: LogReg pipeline has internal scaler -> feed raw features.
         # Tree models (RF, XGB) trained on raw features -> feed raw features.
         # All models now get raw features.
-        if _uses_internal_scaler(model):
-            models[key] = (model, Xv, Xs)
-        else:
-            # Tree models trained on raw features in the updated train_binary.py
-            models[key] = (model, Xv, Xs)
+        # All models receive raw features: LogReg has internal pipeline scaler,
+        # tree models (RF, XGB) are scale-invariant.
+        models[key] = (model, Xv, Xs)
 
     if not models:
         raise SystemExit(

@@ -615,7 +615,7 @@ def plot_attck_mapping_table(full: dict, fdir: Path, alerts_path: Path) -> None:
         "Web Attack-Brute Force":  ("T1110",     "Brute Force",             True,  "HTTP POST burst"),
         "Web Attack-XSS":          ("T1059.007", "JavaScript Interpreter",  False, "Payload in HTTP body"),
         "Web Attack-Sql Injection":("T1190",     "Exploit Public App",      False, "Not in flow features"),
-        "Infiltration":            ("T1082",     "System Info Discovery",   False, "Too few samples"),
+        "Infiltration":            ("T1046",     "Network Service Scan",    False, "Too few samples"),
         "Heartbleed":              ("T1190",     "Exploit Public App",      False, "TLS internal, not in flow"),
         "Benign":                  (None,        None,                      True,  "Normal traffic"),
     }
@@ -731,8 +731,19 @@ def write_report(m: dict, out: Path, adir: Path) -> None:
     lines += [
         f"\n**Best model (macro F1):** `{best}`\n\n",
         "**Key observations:**\n\n",
-        "- Logistic Regression (0.26 F1) confirms flow features are not linearly separable.\n",
-        "- Random Forest and XGBoost both perform well; XGBoost wins by ~4 F1 points.\n",
+    ]
+    # Dynamic observations from actual metrics
+    model_f1s = {k: full[k]["macro_f1"] for k in models}
+    sorted_models = sorted(model_f1s.items(), key=lambda x: x[1], reverse=True)
+    if len(sorted_models) >= 1:
+        best_name, best_f1 = sorted_models[0]
+        lines.append(f"- Best model: {best_name} with macro F1 = {best_f1:.2f}.\n")
+    if "logreg" in model_f1s:
+        lines.append(f"- Logistic Regression ({model_f1s['logreg']:.2f} F1) confirms flow features are not linearly separable.\n")
+    if len(sorted_models) >= 2:
+        gap = sorted_models[0][1] - sorted_models[1][1]
+        lines.append(f"- {sorted_models[0][0]} leads {sorted_models[1][0]} by {gap:.2f} F1 points.\n")
+    lines += [
         "- High accuracy masks per-class failures on rare classes — see per_class_f1.png.\n\n",
         "---\n\n",
         "## 2. Error Analysis — Top Confusions\n\n",
