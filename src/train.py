@@ -96,7 +96,7 @@ def main():
     # transforms.  We still save a scaler so eval.py has a consistent interface,
     # but only LogReg actually requires it (via its internal Pipeline scaler).
     scaler = StandardScaler()
-    Xt_s = scaler.fit_transform(Xt)
+    scaler.fit(Xt)  # Fit only; tree models use raw features, LogReg has internal scaler
 
     models = []
 

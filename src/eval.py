@@ -152,10 +152,12 @@ def main():
             y, pred, labels=np.arange(n_classes), zero_division=0)
         cm = confusion_matrix(y, pred, labels=np.arange(n_classes))
 
+        # Only average over classes that have support (avoid zero-support dragging down macro)
+        has_support = sup > 0
         rec = {
-            "macro_precision": float(np.mean(pr)),
-            "macro_recall":    float(np.mean(rc)),
-            "macro_f1":        float(np.mean(f1)),
+            "macro_precision": float(np.mean(pr[has_support])) if has_support.any() else 0.0,
+            "macro_recall":    float(np.mean(rc[has_support])) if has_support.any() else 0.0,
+            "macro_f1":        float(np.mean(f1[has_support])) if has_support.any() else 0.0,
             "micro_f1":        float(precision_recall_fscore_support(
                                     y, pred, average="micro", zero_division=0)[2]),
             "per_class":       {class_names[i]: {

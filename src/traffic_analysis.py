@@ -90,8 +90,8 @@ MITRE = {
     },
     "DoS GoldenEye": {
         "tactic": "Impact",
-        "technique_id": "T1499",
-        "technique": "Endpoint Denial of Service",
+        "technique_id": "T1498",
+        "technique": "Network Denial of Service",
         "kill_chain": "Impact",
         "soc_action": (
             "1. Rate-limit HTTP Keep-Alive connections at load balancer.\n"
