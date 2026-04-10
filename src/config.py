@@ -4,11 +4,25 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Data
+# ── CICIDS2017 ────────────────────────────────────────────────────────
 RAW_DIR = ROOT / "data" / "raw" / "cicids2017"
 PROCESSED_DIR = ROOT / "data" / "processed" / "cicids2017"
 DATA_FILE = PROCESSED_DIR / "all_clean.parquet"
 META_FILE = PROCESSED_DIR / "meta.md"
+
+# ── UNSW-NB15 ─────────────────────────────────────────────────────────
+UNSW_RAW_DIR = ROOT / "data" / "unsw-nb15" / "raw"
+UNSW_PROCESSED_DIR = ROOT / "data" / "processed" / "unsw-nb15"
+UNSW_DATA_FILE = UNSW_PROCESSED_DIR / "all_clean.parquet"
+UNSW_META_FILE = UNSW_PROCESSED_DIR / "meta.md"
+
+# Columns to drop from UNSW-NB15 (not features)
+UNSW_NON_FEATURE = frozenset({
+    "id", "attack_cat", "label", "split",
+})
+
+# UNSW-NB15 categorical columns (need encoding)
+UNSW_CATEGORICAL = ["proto", "service", "state"]
 
 # Leakage columns — CICFlowMeter-derived rates, exclude to avoid shortcut learning
 LEAKAGE_COLUMNS = frozenset({
@@ -61,6 +75,10 @@ MODELS_DIR = ROOT / "models"
 METRICS_DIR = REPORTS_DIR / "metrics"
 FIGURES_DIR = ROOT / "reports" / "figures"
 ALERTS_DIR = REPORTS_DIR / "alerts"
+
+# UNSW-NB15 output dirs
+UNSW_MODELS_DIR = ROOT / "models" / "unsw"
+UNSW_METRICS_DIR = ROOT / "reports" / "metrics_unsw"
 
 # Split column names
 SPLIT_COL_DAY = "split_day"

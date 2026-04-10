@@ -1,8 +1,10 @@
 .PHONY: data train eval report all clean leakage-check eval-split-compare
+.PHONY: unsw-data unsw-train unsw-eval unsw-all
 
 PY ?= python
 SPLIT ?= day
 
+# ── CICIDS2017 ────────────────────────────────────────────────────────
 data:
 	$(PY) -m src.prepare_data
 
@@ -26,6 +28,21 @@ leakage-check: data
 eval-split-compare: data
 	$(PY) -m src.eval_split_compare
 
+# ── UNSW-NB15 ─────────────────────────────────────────────────────────
+unsw-data:
+	$(PY) -m src.prepare_unsw
+
+unsw-train: unsw-data
+	$(PY) -m src.train_unsw --task multiclass
+	$(PY) -m src.train_unsw --task binary
+
+unsw-eval: unsw-train
+	$(PY) -m src.eval_unsw --task multiclass
+	$(PY) -m src.eval_unsw --task binary
+
+unsw-all: unsw-eval
+
+# ── Cleanup ────────────────────────────────────────────────────────────
 clean:
 	rm -rf data/processed reports models
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
