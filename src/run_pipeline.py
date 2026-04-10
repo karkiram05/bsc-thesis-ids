@@ -134,11 +134,10 @@ def main() -> None:
             f"train_binary_{split}"
         )
 
-        # FIX: pass the correct binary models directory, not the root models dir
         step(
             py + ["-m", "src.eval_binary",
                   "--split", split,
-                  "--models-dir", "models",
+                  "--models-dir", binary_models_dir,
                   "--out-dir", binary_dir],
             f"eval_binary_{split}"
         )

@@ -6,6 +6,7 @@ Thresholds are selected on validation split and then applied once on test.
 Usage:
   python -m src.train_binary --split strat --out-dir models/binary_strat
   python -m src.eval_binary  --split strat --models-dir models --out-dir reports/metrics_strat_binary
+  python -m src.eval_binary  --split strat --models-dir models/binary_strat --out-dir reports/metrics_strat_binary
 """
 
 from __future__ import annotations
@@ -80,6 +81,25 @@ def _uses_internal_scaler(model):
     return hasattr(model, "steps") and "scaler" in [s[0] for s in model.steps]
 
 
+def _resolve_models_dir(models_dir: Path, split: str) -> Path:
+    """Accept either models/ or a direct binary_<split>/ directory."""
+    direct_dir = Path(models_dir)
+    nested_dir = direct_dir / f"binary_{split}"
+
+    direct_has_meta = (direct_dir / "meta.json").exists()
+    nested_has_meta = (nested_dir / "meta.json").exists()
+
+    if direct_has_meta:
+        return direct_dir
+    if nested_has_meta:
+        return nested_dir
+
+    raise SystemExit(
+        f"Could not find binary model artifacts in either {direct_dir} or {nested_dir}. "
+        f"Run train first: python -m src.train_binary --split {split} --out-dir {nested_dir}"
+    )
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--split", choices=["day", "strat"], default="strat")
@@ -103,12 +123,7 @@ def main() -> None:
           f"val={len(yv)} (attack={yv.sum()}) | "
           f"test={len(ys)} (attack={ys.sum()})")
 
-    bin_models_dir = Path(args.models_dir) / f"binary_{args.split}"
-    if not bin_models_dir.exists():
-        raise SystemExit(
-            f"Missing {bin_models_dir}. Run train first: "
-            f"python -m src.train_binary --split {args.split} --out-dir {bin_models_dir}"
-        )
+    bin_models_dir = _resolve_models_dir(Path(args.models_dir), args.split)
     scaler_path = bin_models_dir / "scaler.joblib"
     if not scaler_path.exists():
         raise SystemExit(f"Missing {scaler_path}. Re-run src.train_binary.")
@@ -203,8 +218,8 @@ def main() -> None:
                     "mean_predicted_prob": mean_pred,
                     "fraction_positives": frac_pos
                 }).to_csv(out / f"binary_calibration_curve_{key}.csv", index=False)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[warn] Calibration curve failed for model '{key}': {e}")
 
         all_results[key] = {
             "roc_auc": round(roc_auc, 4),

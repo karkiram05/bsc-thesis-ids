@@ -242,8 +242,8 @@ def main():
                         "tpr": tpr_arr[::step].tolist(),
                         "auc": auc_val,
                     }
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"[warn] ROC curve failed for class '{cls}': {e}")
             rec["roc_curve_data"] = roc_data
 
             # PR curve data — minority classes only
@@ -263,8 +263,8 @@ def main():
                         "ap":        ap_val,
                         "n_test":    n_test,
                     }
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"[warn] PR curve failed for class '{cls}': {e}")
             rec["pr_curve_data"] = pr_data
 
         results[key] = rec
