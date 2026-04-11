@@ -61,7 +61,7 @@ def _load_binary_splits(df: pd.DataFrame, split_col: str):
 def _threshold_table(y_true, y_prob, thresholds=None):
     """Return DataFrame with threshold / precision / recall / F1 / FPR rows."""
     if thresholds is None:
-        thresholds = np.arange(0.05, 0.96, 0.05)
+        thresholds = np.arange(0.01, 0.96, 0.01)  # Fine grid (0.01 steps)
     rows = []
     n_neg = (y_true == 0).sum()
     for t in thresholds:
@@ -131,7 +131,7 @@ def main() -> None:
 
     # --- Load trained binary models (evaluation only) ---
     models: dict[str, tuple[object, pd.DataFrame | np.ndarray, pd.DataFrame | np.ndarray]] = {}
-    for key in ["logreg", "random_forest", "xgboost", "xgboost_calibrated"]:
+    for key in ["logreg", "random_forest", "xgboost", "lightgbm", "xgboost_calibrated"]:
         p = bin_models_dir / f"{key}.joblib"
         if not p.exists():
             continue
@@ -155,12 +155,28 @@ def main() -> None:
     for key, (model, X_val, X_test) in models.items():
         proba = model.predict_proba(X_test)[:, 1]
 
-        # Optimal threshold chosen on val, never test
+        # Optimal threshold chosen on val, never test.
+        # Use sklearn's precision_recall_curve for a fine-grained search
+        # instead of a coarse grid — avoids missing the optimal point.
         proba_val = model.predict_proba(X_val)[:, 1]
-        thr_table_val = _threshold_table(yv, proba_val)
-        best_thr = float(thr_table_val.loc[thr_table_val["f1"].idxmax(), "threshold"])
 
-        # FIX: Also find FPR-constrained threshold (FPR <= 1%)
+        prec_val, rec_val, thr_val = precision_recall_curve(yv, proba_val)
+        # F1 = 2*P*R / (P+R); compute for each threshold from the PR curve
+        with np.errstate(divide="ignore", invalid="ignore"):
+            f1_val = np.where(
+                (prec_val[:-1] + rec_val[:-1]) > 0,
+                2 * prec_val[:-1] * rec_val[:-1] / (prec_val[:-1] + rec_val[:-1]),
+                0.0,
+            )
+        best_idx = int(np.argmax(f1_val))
+        best_thr = float(thr_val[best_idx])
+        print(f"[{key}] val-optimal threshold={best_thr:.4f} "
+              f"(val F1={f1_val[best_idx]:.4f}, P={prec_val[best_idx]:.4f}, R={rec_val[best_idx]:.4f})")
+
+        # Also generate coarse threshold table for reporting
+        thr_table_val = _threshold_table(yv, proba_val)
+
+        # FPR-constrained threshold (FPR <= 1%)
         fpr_constrained_rows = thr_table_val[thr_table_val["fpr"] <= 0.01]
         if len(fpr_constrained_rows) > 0:
             fpr_thr = float(fpr_constrained_rows.loc[fpr_constrained_rows["f1"].idxmax(), "threshold"])
@@ -211,7 +227,7 @@ def main() -> None:
         ).to_csv(out / f"binary_confusion_matrix_{key}.csv")
 
         # Calibration curve
-        if key in ("xgboost", "xgboost_calibrated", "random_forest"):
+        if key in ("xgboost", "lightgbm", "xgboost_calibrated", "random_forest"):
             try:
                 frac_pos, mean_pred = calibration_curve(ys, proba, n_bins=10)
                 pd.DataFrame({

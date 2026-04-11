@@ -1,5 +1,0 @@
-{
-  "logreg": 0.50,
-  "random_forest": 0.41,
-  "xgboost": 0.17
-}

@@ -42,6 +42,10 @@ unsw-eval: unsw-train
 
 unsw-all: unsw-eval
 
+# ── Validation experiments ─────────────────────────────────────────────
+validation: data
+	$(PY) -m src.run_validation_experiments
+
 # ── Cleanup ────────────────────────────────────────────────────────────
 clean:
 	rm -rf data/processed reports models

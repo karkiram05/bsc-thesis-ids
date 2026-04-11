@@ -137,6 +137,28 @@ def main() -> None:
         models.append(("xgboost", xgb_clf))
         print("[train] XGBoost done.")
 
+        # LightGBM
+        import lightgbm as lgb
+        print("[train] LightGBM ...")
+        lgb_params = {
+            "n_estimators": 200,
+            "max_depth": 8,
+            "learning_rate": 0.1,
+            "num_leaves": 63,
+            "min_child_samples": 20,
+            "random_state": RNG,
+            "n_jobs": -1,
+            "verbose": -1,
+        }
+        if args.task == "binary":
+            lgb_params["is_unbalance"] = True
+        else:
+            lgb_params["class_weight"] = "balanced"
+        lgb_clf = lgb.LGBMClassifier(**lgb_params)
+        lgb_clf.fit(Xt, yt)
+        models.append(("lightgbm", lgb_clf))
+        print("[train] LightGBM done.")
+
     # Save artifacts
     joblib.dump(scaler, out / "scaler.joblib")
     if le is not None:

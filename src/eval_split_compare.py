@@ -73,8 +73,9 @@ def main() -> None:
     # --- Build report ---
     lines = [
         "# Eval: Stratified vs Day Split\n\n",
-        "> Note: XGBoost is excluded from this comparison (run with `--baseline-only`).\n"
-        "> For full 3-model results, see `reports/metrics_strat/` and `reports/metrics_day/`.\n\n",
+        "> Note: This comparison uses `--baseline-only` (LogReg + RF). If XGBoost results\n"
+        "> appear below, they come from a prior full-pipeline run in the same metrics directories.\n"
+        "> For the authoritative 3-model results, see `reports/metrics_strat/` and `reports/metrics_day/`.\n\n",
         "## 0. Macro F1 comparison\n\n",
         "| Model | Stratified F1 | Day-based F1 | Δ (day − strat) |\n",
         "|-------|--------------|--------------|------------------|\n",

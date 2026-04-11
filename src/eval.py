@@ -97,16 +97,23 @@ def main():
 
     n_classes  = len(class_names)
 
+    # Load label remaps for boosting models (day split: non-contiguous classes)
     remap_path      = models_dir / "xgboost_label_remap.json"
     xgb_train_classes = None
     if remap_path.exists():
         xgb_train_classes = json.loads(remap_path.read_text())["train_classes"]
 
+    lgb_remap_path = models_dir / "lightgbm_label_remap.json"
+    lgb_train_classes = None
+    if lgb_remap_path.exists():
+        lgb_train_classes = json.loads(lgb_remap_path.read_text())["train_classes"]
+
     results = {}
 
     for key, path in [("logreg",        models_dir / "logreg.joblib"),
                       ("random_forest", models_dir / "random_forest.joblib"),
-                      ("xgboost",       models_dir / "xgboost.joblib")]:
+                      ("xgboost",       models_dir / "xgboost.joblib"),
+                      ("lightgbm",      models_dir / "lightgbm.joblib")]:
 
         if not path.exists():
             print(f"[eval] skipping {key} (not found)")
@@ -129,12 +136,18 @@ def main():
         raw_pred = model.predict(X_in)
         raw_proba = model.predict_proba(X_in) if hasattr(model, "predict_proba") else None
 
-        # XGBoost label remapping (day split: non-contiguous classes)
+        # Boosting model label remapping (day split: non-contiguous classes)
+        remap_classes = None
         if key == "xgboost" and xgb_train_classes is not None:
-            pred = np.array([xgb_train_classes[p] for p in raw_pred.tolist()], dtype=np.int64)
+            remap_classes = xgb_train_classes
+        elif key == "lightgbm" and lgb_train_classes is not None:
+            remap_classes = lgb_train_classes
+
+        if remap_classes is not None:
+            pred = np.array([remap_classes[p] for p in raw_pred.tolist()], dtype=np.int64)
             if raw_proba is not None:
                 proba = np.zeros((len(raw_proba), n_classes), dtype=np.float64)
-                for local_i, global_i in enumerate(xgb_train_classes):
+                for local_i, global_i in enumerate(remap_classes):
                     proba[:, global_i] = raw_proba[:, local_i]
             else:
                 proba = None

@@ -51,7 +51,7 @@ def eval_multiclass(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: lis
 
     results = {}
 
-    for key in ["logreg", "random_forest", "xgboost"]:
+    for key in ["logreg", "random_forest", "xgboost", "lightgbm"]:
         path = models_dir / f"{key}.joblib"
         if not path.exists():
             print(f"[eval] skipping {key} (not found)")
@@ -164,7 +164,7 @@ def eval_binary(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: list[st
 
     results = {}
 
-    for key in ["logreg", "random_forest", "xgboost"]:
+    for key in ["logreg", "random_forest", "xgboost", "lightgbm"]:
         path = models_dir / f"{key}.joblib"
         if not path.exists():
             continue

@@ -142,6 +142,24 @@ def main() -> None:
         xgb_clf.fit(Xt, yt, verbose=False)  # FIX: raw features
         models.append(("xgboost", xgb_clf))
 
+        # LightGBM — histogram-based boosting
+        import lightgbm as lgb
+        print("[train] LightGBM ...")
+        lgb_clf = lgb.LGBMClassifier(
+            n_estimators=400,
+            max_depth=8,
+            learning_rate=0.05,
+            num_leaves=63,
+            min_child_samples=20,
+            is_unbalance=True,
+            random_state=RNG,
+            n_jobs=-1,
+            verbose=-1,
+        )
+        lgb_clf.fit(Xt, yt)
+        models.append(("lightgbm", lgb_clf))
+        print("[train] LightGBM done.")
+
     # Save artifacts
     joblib.dump(scaler, out / "scaler.joblib")
     (out / "feature_names.json").write_text(json.dumps(feat, indent=2), encoding="utf-8")
