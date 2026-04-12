@@ -779,7 +779,7 @@ def write_report(m: dict, out: Path, adir: Path) -> None:
         "FIN Flag Count":         "Connection terminations — brute force loops show many FINs",
     }
 
-    for key in ["xgboost", "random_forest"]:
+    for key in ["xgboost", "lightgbm", "random_forest"]:
         p_csv = Path(args_global.metrics_dir) / f"feature_importance_{key}.csv"
         if not p_csv.exists():
             continue
@@ -875,7 +875,7 @@ def main() -> None:
         plot_confusion_matrix(cm, labels, fdir, best)
 
     # Figure 2: Feature importance (both models, annotation removed)
-    for key in ["xgboost", "random_forest"]:
+    for key in ["xgboost", "lightgbm", "random_forest"]:
         p = mdir / f"feature_importance_{key}.csv"
         if p.exists():
             imp = pd.read_csv(p)

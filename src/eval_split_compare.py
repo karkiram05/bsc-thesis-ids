@@ -73,15 +73,14 @@ def main() -> None:
     # --- Build report ---
     lines = [
         "# Eval: Stratified vs Day Split\n\n",
-        "> Note: This comparison uses `--baseline-only` (LogReg + RF). If XGBoost results\n"
-        "> appear below, they come from a prior full-pipeline run in the same metrics directories.\n"
-        "> For the authoritative 3-model results, see `reports/metrics_strat/` and `reports/metrics_day/`.\n\n",
+        "> All four models (LogReg, RandomForest, XGBoost, LightGBM) are compared below.\n"
+        "> See `reports/metrics_strat/` and `reports/metrics_day/` for full per-class metrics.\n\n",
         "## 0. Macro F1 comparison\n\n",
         "| Model | Stratified F1 | Day-based F1 | Δ (day − strat) |\n",
         "|-------|--------------|--------------|------------------|\n",
     ]
 
-    for key in ["logreg", "random_forest", "xgboost"]:
+    for key in ["logreg", "random_forest", "xgboost", "lightgbm"]:
         fs = full_s.get(key, {})
         fd = full_d.get(key, {})
         if not fs or not fd:
@@ -101,7 +100,7 @@ def main() -> None:
         "Train/val/test are random splits with the **same attack distribution** in each fold. "
         "No temporal separation — train and test come from the same days.\n\n"
     )
-    for key in ["logreg", "random_forest", "xgboost"]:
+    for key in ["logreg", "random_forest", "xgboost", "lightgbm"]:
         v = full_s.get(key)
         if not v:
             continue
@@ -118,7 +117,7 @@ def main() -> None:
         "Train = Mon–Wed, Val = Thu, Test = Fri. **Test day is fully unseen during training.** "
         "Attack distributions and benign traffic patterns differ across days.\n\n"
     )
-    for key in ["logreg", "random_forest", "xgboost"]:
+    for key in ["logreg", "random_forest", "xgboost", "lightgbm"]:
         v = full_d.get(key)
         if not v:
             continue

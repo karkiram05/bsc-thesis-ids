@@ -29,13 +29,13 @@ def _uses_internal_scaler(model):
 
 
 def _is_tree_model(model):
-    """Return True if model is tree-based (RF, XGBoost) and doesn't need scaling."""
+    """Return True if model is tree-based (RF, XGBoost, LightGBM) and doesn't need scaling."""
     base = model
     if hasattr(model, "steps"):
         for _, step in model.steps:
             base = step
     cls_name = type(base).__name__.lower()
-    return any(t in cls_name for t in ["forest", "xgb", "tree", "gradient"])
+    return any(t in cls_name for t in ["forest", "xgb", "lgb", "tree", "gradient"])
 
 
 def auc_from_arrays(fpr, tpr):
@@ -103,11 +103,6 @@ def main():
     if remap_path.exists():
         xgb_train_classes = json.loads(remap_path.read_text())["train_classes"]
 
-    lgb_remap_path = models_dir / "lightgbm_label_remap.json"
-    lgb_train_classes = None
-    if lgb_remap_path.exists():
-        lgb_train_classes = json.loads(lgb_remap_path.read_text())["train_classes"]
-
     results = {}
 
     for key, path in [("logreg",        models_dir / "logreg.joblib"),
@@ -137,11 +132,11 @@ def main():
         raw_proba = model.predict_proba(X_in) if hasattr(model, "predict_proba") else None
 
         # Boosting model label remapping (day split: non-contiguous classes)
+        # XGBoost label remapping (day split: non-contiguous classes).
+        # LightGBM handles non-contiguous labels natively — no remap needed.
         remap_classes = None
         if key == "xgboost" and xgb_train_classes is not None:
             remap_classes = xgb_train_classes
-        elif key == "lightgbm" and lgb_train_classes is not None:
-            remap_classes = lgb_train_classes
 
         if remap_classes is not None:
             pred = np.array([remap_classes[p] for p in raw_pred.tolist()], dtype=np.int64)

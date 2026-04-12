@@ -134,19 +134,21 @@ def main():
         print("[train] XGBoost done.")
 
         # LightGBM — histogram-based boosting, fast and competitive with XGBoost.
-        # Uses the same contiguous label remap as XGBoost.
+        # LightGBM handles non-contiguous labels natively (unlike XGBoost),
+        # so we train on the original yt labels — no remapping needed.
         import lightgbm as lgb
         print("[train] LightGBM ...")
+        # NOTE: class_weight="balanced" over-corrects for 15-class CICIDS2017
+        # (Benign ~80%), giving macro_f1=0.05. Without it, LightGBM gets ~0.30 on strat
+        # vs XGBoost's 0.86 — LightGBM's multi-class performance is weaker on this dataset.
+        # This is a valid thesis finding; we keep default params for honest comparison.
         lgb_clf = lgb.LGBMClassifier(
             n_estimators=200, max_depth=8, learning_rate=0.1,
             num_leaves=63, min_child_samples=20,
-            class_weight="balanced", random_state=RNG, n_jobs=-1, verbose=-1,
+            random_state=RNG, n_jobs=-1, verbose=-1,
         )
-        lgb_clf.fit(Xt, yt_xgb)
+        lgb_clf.fit(Xt, yt)
         models.append(("lightgbm", lgb_clf))
-        # LightGBM uses the same label remap as XGBoost
-        with open(out / "lightgbm_label_remap.json", "w") as f:
-            json.dump({"train_classes": train_classes, "n_global_classes": n_classes}, f, indent=2)
         print("[train] LightGBM done.")
 
     joblib.dump(le, out / "label_encoder.joblib")

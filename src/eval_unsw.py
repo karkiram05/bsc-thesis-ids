@@ -173,15 +173,11 @@ def eval_binary(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: list[st
         proba = model.predict_proba(X)[:, 1]
         proba_val = model.predict_proba(Xv)[:, 1]
 
-        # Threshold tuning on val
-        best_thr, best_f1 = 0.5, -1.0
-        for t in np.arange(0.05, 0.96, 0.05):
-            pred_t = (proba_val >= t).astype(int)
-            _, _, f1_t, _ = precision_recall_fscore_support(
-                yv, pred_t, average="binary", zero_division=0)
-            if f1_t > best_f1:
-                best_f1 = f1_t
-                best_thr = float(t)
+        # Threshold tuning on val — Youden's J statistic (maximize TPR − FPR)
+        fpr_val, tpr_val, thr_roc = roc_curve(yv, proba_val)
+        j_scores = tpr_val[:-1] - fpr_val[:-1]
+        best_j_idx = int(np.argmax(j_scores))
+        best_thr = float(thr_roc[best_j_idx])
 
         pred = (proba >= best_thr).astype(int)
 
@@ -213,7 +209,7 @@ def eval_binary(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: list[st
         results[key] = {
             "roc_auc": round(roc_auc, 4),
             "pr_auc": round(pr_auc, 4),
-            "best_threshold": round(best_thr, 2),
+            "best_threshold": round(best_thr, 6),
             "precision": round(float(p), 4),
             "recall": round(float(r), 4),
             "f1": round(float(f1), 4),

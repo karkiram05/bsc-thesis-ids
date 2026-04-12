@@ -33,6 +33,7 @@ from sklearn.metrics import (
     f1_score,
     precision_recall_fscore_support,
     roc_auc_score,
+    roc_curve,
 )
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -77,6 +78,15 @@ def _build_models(baseline_only: bool = False):
                 random_state=RNG, n_jobs=-1,
             )
         models.append(("xgboost", _xgb_factory))
+
+        def _lgb_factory():
+            import lightgbm as lgb
+            return lgb.LGBMClassifier(
+                n_estimators=400, max_depth=8, learning_rate=0.05,
+                num_leaves=63, min_child_samples=20, is_unbalance=True,
+                random_state=RNG, n_jobs=-1, verbose=-1,
+            )
+        models.append(("lightgbm", _lgb_factory))
 
     return models
 
@@ -138,17 +148,14 @@ def main() -> None:
 
             proba = model.predict_proba(X_test)[:, 1]
 
-            # Tune threshold on inner val set (best F1)
+            # Tune threshold on inner val set — Youden's J statistic
+            # (prevalence-invariant, transfers across distribution shifts)
             if n_attack_val > 0:
                 proba_val = model.predict_proba(X_val)[:, 1]
-                best_thr = 0.5
-                best_f1_val = -1.0
-                for t in np.arange(0.05, 0.96, 0.05):
-                    pred_v = (proba_val >= t).astype(int)
-                    f1_v = float(f1_score(y_val, pred_v, average="binary", zero_division=0))
-                    if f1_v > best_f1_val:
-                        best_f1_val = f1_v
-                        best_thr = float(t)
+                fpr_val, tpr_val, thr_roc = roc_curve(y_val, proba_val)
+                j_scores = tpr_val[:-1] - fpr_val[:-1]
+                best_j_idx = int(np.argmax(j_scores))
+                best_thr = float(thr_roc[best_j_idx])
             else:
                 # Val has no attacks (e.g., Monday as val) — use default
                 best_thr = 0.5
@@ -164,7 +171,7 @@ def main() -> None:
                 "n_test": int(len(y_test)),
                 "n_attack_test": n_attack_test,
                 "attack_rate_test": round(attack_rate, 4),
-                "threshold": round(best_thr, 2),
+                "threshold": round(best_thr, 6),
             }
 
             # Monday is benign-only — ROC-AUC and PR-AUC are undefined
@@ -202,7 +209,7 @@ def main() -> None:
                 f"PR={fold_result['pr_auc']}  "
                 f"F1={fold_result['f1']}  "
                 f"FPR={fold_result['fpr']:.6f}  "
-                f"thr={best_thr:.2f}"
+                f"thr={best_thr:.6f}"
             )
             print(metrics_str)
 
@@ -251,7 +258,7 @@ def main() -> None:
     # Write markdown summary
     lines = [
         "# Leave-One-Day-Out Binary Cross-Validation\n\n",
-        "**Protocol**: Train on 3 days, tune threshold on 1 inner val day, test on 1 held-out day. Repeat for all 5 days.\n",
+        "**Protocol**: Train on 3 days, tune threshold on 1 inner val day (Youden's J), test on 1 held-out day. Repeat for all 5 days.\n",
         "**Task**: Binary (Benign vs Attack).\n",
         "**Note**: Monday is benign-only; ROC-AUC/PR-AUC/F1 computed on 4 folds with attacks.\n",
         "FPR is computed on all 5 folds.\n\n",
@@ -280,14 +287,15 @@ def main() -> None:
         f1 = f"{r['f1']:.4f}" if r["f1"] is not None else "—"
         lines.append(
             f"| {r['held_out_day']} | {r['model']} | {r['n_attack_test']} "
-            f"| {r['threshold']:.2f} "
+            f"| {r['threshold']:.6f} "
             f"| {roc} | {pr} | {f1} | {r['fpr']:.6f} |\n"
         )
 
     lines += [
         "\n## Interpretation\n\n",
         "- If ROC-AUC is consistently high across folds (>0.95), binary detection generalises well temporally.\n",
-        "- Thresholds are tuned per fold on an inner validation day (the last training day chronologically).\n",
+        "- Thresholds are tuned per fold using Youden's J statistic (maximize TPR − FPR) on an inner validation day.\n",
+        "- Youden's J is prevalence-invariant, so thresholds transfer better across days with different attack rates.\n",
         "- F1 depends on both discrimination (AUC) and threshold calibration. High AUC with low F1 means the threshold doesn't transfer.\n",
         "- Monday (benign-only) tests the false positive rate in isolation.\n",
         "- This complements the single day-split evaluation by providing variance estimates.\n",

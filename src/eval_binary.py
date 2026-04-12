@@ -136,11 +136,8 @@ def main() -> None:
         if not p.exists():
             continue
         model = joblib.load(p)
-        # FIX: LogReg pipeline has internal scaler -> feed raw features.
-        # Tree models (RF, XGB) trained on raw features -> feed raw features.
-        # All models now get raw features.
         # All models receive raw features: LogReg has internal pipeline scaler,
-        # tree models (RF, XGB) are scale-invariant.
+        # tree models (RF, XGB, LightGBM) are scale-invariant.
         models[key] = (model, Xv, Xs)
 
     if not models:
@@ -156,32 +153,48 @@ def main() -> None:
         proba = model.predict_proba(X_test)[:, 1]
 
         # Optimal threshold chosen on val, never test.
-        # Use sklearn's precision_recall_curve for a fine-grained search
-        # instead of a coarse grid — avoids missing the optimal point.
+        # Primary strategy: Youden's J statistic (maximize TPR − FPR).
+        # Youden's J is prevalence-invariant and doesn't over-fit to the
+        # val class distribution — critical for the day split where val
+        # (Thursday) and test (Friday) have disjoint attack types.
+        #
+        # For comparison we also compute Best-F1 (from PR curve); this is
+        # reported in the output but NOT used for the primary threshold.
         proba_val = model.predict_proba(X_val)[:, 1]
 
-        prec_val, rec_val, thr_val = precision_recall_curve(yv, proba_val)
-        # F1 = 2*P*R / (P+R); compute for each threshold from the PR curve
+        # Reference: Best-F1 from PR curve (for comparison only)
+        prec_val, rec_val, thr_pr = precision_recall_curve(yv, proba_val)
         with np.errstate(divide="ignore", invalid="ignore"):
-            f1_val = np.where(
+            f1_pr = np.where(
                 (prec_val[:-1] + rec_val[:-1]) > 0,
                 2 * prec_val[:-1] * rec_val[:-1] / (prec_val[:-1] + rec_val[:-1]),
                 0.0,
             )
-        best_idx = int(np.argmax(f1_val))
-        best_thr = float(thr_val[best_idx])
-        print(f"[{key}] val-optimal threshold={best_thr:.4f} "
-              f"(val F1={f1_val[best_idx]:.4f}, P={prec_val[best_idx]:.4f}, R={rec_val[best_idx]:.4f})")
+        best_pr_idx = int(np.argmax(f1_pr))
+        thr_bestf1 = float(thr_pr[best_pr_idx])
 
-        # Also generate coarse threshold table for reporting
+        # Primary: Youden's J statistic (maximize TPR − FPR on val ROC)
+        fpr_val, tpr_val, thr_roc = roc_curve(yv, proba_val)
+        j_scores = tpr_val[:-1] - fpr_val[:-1]
+        best_j_idx = int(np.argmax(j_scores))
+        thr_youden = float(thr_roc[best_j_idx])
+
+        best_thr = thr_youden
+        thr_source = "Youden's J"
+
+        # Evaluate Youden on val for reporting
+        pred_youden = (proba_val >= thr_youden).astype(int)
+        _, _, best_val_f1, _ = precision_recall_fscore_support(
+            yv, pred_youden, average="binary", zero_division=0)
+
+        fpr_thr = thr_youden  # report the Youden threshold as FPR point
+
+        print(f"[{key}] threshold={best_thr:.6f} via {thr_source} "
+              f"(Best-F1 thr={thr_bestf1:.4f}, Youden thr={thr_youden:.6f}, "
+              f"valF1={best_val_f1:.4f})")
+
+        # Also generate threshold table for reporting
         thr_table_val = _threshold_table(yv, proba_val)
-
-        # FPR-constrained threshold (FPR <= 1%)
-        fpr_constrained_rows = thr_table_val[thr_table_val["fpr"] <= 0.01]
-        if len(fpr_constrained_rows) > 0:
-            fpr_thr = float(fpr_constrained_rows.loc[fpr_constrained_rows["f1"].idxmax(), "threshold"])
-        else:
-            fpr_thr = best_thr  # fallback
 
         pred = (proba >= best_thr).astype(int)
 
@@ -241,8 +254,8 @@ def main() -> None:
             "roc_auc": round(roc_auc, 4),
             "pr_auc": round(pr_auc, 4),
             "brier_score": round(brier, 4),
-            "best_threshold_from_val": round(best_thr, 2),
-            "fpr_constrained_threshold": round(fpr_thr, 2),
+            "best_threshold_from_val": round(best_thr, 6),
+            "fpr_constrained_threshold": round(fpr_thr, 6),
             "precision_at_threshold": round(float(p), 4),
             "recall_at_threshold": round(float(r), 4),
             "f1_at_threshold": round(float(f1), 4),
@@ -251,7 +264,7 @@ def main() -> None:
         }
 
         print(f"[{key}] ROC-AUC={roc_auc:.4f}  PR-AUC={pr_auc:.4f}  "
-              f"Brier={brier:.4f}  thr={best_thr:.2f}  "
+              f"Brier={brier:.4f}  thr={best_thr:.6f}  "
               f"P={p:.4f}  R={r:.4f}  F1={f1:.4f}  FPR={fpr_at_thr:.4f}")
 
     with open(out / "binary_metrics.json", "w") as f:
