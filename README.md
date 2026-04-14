@@ -227,6 +227,88 @@ Install with: `pip install -r requirements.txt`
 
 ---
 
+## Reproducibility Guide
+
+### Prerequisites
+
+- Python 3.12+ (tested with 3.12.4)
+- macOS / Linux (Windows not tested)
+- ~4 GB free disk space (for data + models)
+- ~8 GB RAM recommended (for training RF on 2.3M flows)
+
+### Step-by-step Reproduction
+
+```bash
+# 1. Clone and set up environment
+git clone <repo-url>
+cd bsc-thesis-ids
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 2. Place raw data
+#    CICIDS2017: download from https://www.unb.ca/cic/datasets/ids-2017.html
+#    Place parquet files in data/raw/cicids2017/
+#    UNSW-NB15: download from https://research.unsw.edu.au/projects/unsw-nb15-dataset
+#    Place CSV files in data/unsw-nb15/raw/
+
+# 3. Run full CICIDS2017 pipeline (~15 min)
+make all SPLIT=strat        # Stratified split
+make all SPLIT=day           # Day-based split
+
+# 4. Run binary models
+python -m src.train_binary --split strat --out-dir models/binary_strat
+python -m src.train_binary --split day   --out-dir models/binary_day
+python -m src.eval_binary  --split strat --models-dir models/binary_strat --out-dir reports/metrics_strat_binary
+python -m src.eval_binary  --split day   --models-dir models/binary_day   --out-dir reports/metrics_day_binary
+
+# 5. Run UNSW-NB15 pipeline
+make unsw-all
+
+# 6. Run LODO cross-validation (~20 min)
+python -m src.eval_lodo
+
+# 7. Run validation experiments
+python -m src.run_validation_experiments
+
+# 8. Generate all figures and analysis
+python -m src.report
+python -m src.traffic_analysis
+python -m src.generate_extra_figures
+python -m src.generate_defense_figures
+python -m src.generate_shap_mcnemar
+
+# 9. Generate thesis Word document
+python -m src.generate_thesis_docx
+```
+
+### Verification
+
+After running the full pipeline, verify:
+- `reports/figures/` contains 22+ PNG figures
+- `reports/master_results_table.md` contains 30 rows
+- `reports/lodo/lodo_summary.md` contains LODO results
+- `reports/statistical_tests.md` contains McNemar test results
+- All metrics JSON files in `reports/metrics_*/` are populated
+
+### Random Seed
+
+All experiments use `random_state=42`. Results are deterministic given the same Python version, library versions, and hardware. Minor floating-point differences may occur across platforms.
+
+---
+
+## Hyperparameters
+
+Full hyperparameter configuration for all models is documented in `reports/hyperparameter_table.md`.
+
+Key design decisions:
+- No hyperparameter search (focus on evaluation methodology, not model optimisation)
+- Binary models use more estimators (300-400) and lower learning rate (0.05) than multi-class (200, 0.1) for better generalisation
+- Threshold selection via Youden's J statistic (prevalence-invariant)
+- `class_weight="balanced"` for LogReg; removed for LightGBM multi-class (over-corrects under extreme imbalance)
+
+---
+
 ## Notes
 
 - All models use `random_state=42` for reproducibility.
@@ -235,5 +317,7 @@ Install with: `pip install -r requirements.txt`
 - XGBoost under the day split requires a label remapping step (saved as 
   `xgboost_label_remap.json`) because training classes are non-contiguous when 
   attack types are separated by day.
-- Tree-based models (RF, XGBoost) are trained on raw (unscaled) features. Only 
+- Tree-based models (RF, XGBoost, LightGBM) are trained on raw (unscaled) features. Only 
   LogisticRegression requires feature scaling (handled via its Pipeline scaler).
+- SHAP explainability analysis available in `reports/figures/shap_*.png`.
+- Statistical significance (McNemar's test) in `reports/statistical_tests.md`.
