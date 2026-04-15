@@ -1,21 +1,4 @@
-"""Generate SHAP explainability plots, McNemar's statistical test, and styled table images.
-
-Outputs:
-  SHAP:
-    1. reports/figures/shap_summary_rf_binary.png — SHAP beeswarm for RF binary
-    2. reports/figures/shap_waterfall_attack.png  — Single attack flow explanation
-    3. reports/figures/shap_waterfall_benign.png  — Single benign flow explanation
-  McNemar:
-    4. reports/statistical_tests.md               — McNemar's test (markdown)
-    5. reports/figures/mcnemar_test_table.png      — Styled McNemar table (visual)
-    6. reports/figures/mcnemar_interpretation.png  — Interpretation summary box
-  Hyperparameters:
-    7. reports/figures/hyperparameter_table.png    — Styled hyperparam comparison
-    8. reports/figures/design_decisions_table.png  — Design rationale table
-
-Usage:
-  .venv/bin/python -m src.generate_shap_mcnemar
-"""
+"""SHAP explainability, McNemar's test, and styled table figures."""
 from __future__ import annotations
 
 import json
@@ -48,7 +31,7 @@ def _binary_y(df: pd.DataFrame) -> np.ndarray:
 
 def _render_table(ax, col_labels, row_data, title, col_widths=None,
                   highlight_col=None, highlight_best="max"):
-    """Render a publication-quality styled table on given axes."""
+    """Render styled table on matplotlib axes."""
     ax.axis("off")
     ax.set_title(title, fontsize=14, fontweight="bold", pad=20,
                  color="#1F3A93")
@@ -123,7 +106,7 @@ def _render_table(ax, col_labels, row_data, title, col_widths=None,
 # ── 1. SHAP Analysis ──────────────────────────────────────────────────
 
 def shap_analysis():
-    """SHAP explainability for RF binary model (day split)."""
+    """SHAP plots for RF binary model (day split)."""
     print("[SHAP] Loading data and model...")
 
     df = pd.read_parquet(DATA_FILE)
@@ -150,13 +133,13 @@ def shap_analysis():
     explainer = shap.TreeExplainer(rf)
     shap_values = explainer.shap_values(X_sample)
 
-    # For binary RF, shap_values is list of 2 arrays [class0, class1]
+    # Binary RF returns [class0, class1] arrays
     if isinstance(shap_values, list):
         sv_attack = shap_values[1]
     else:
         sv_attack = shap_values
 
-    # 1a. SHAP Summary (Beeswarm) Plot
+    # Beeswarm plot
     print("[SHAP] Generating summary plot...")
     plt.figure(figsize=(10, 8))
     sv_plot = sv_attack
@@ -173,13 +156,13 @@ def shap_analysis():
     plt.close("all")
     print(f"  wrote {out1}")
 
-    # Base value for attack class
+    # Base value
     if isinstance(explainer.expected_value, (list, np.ndarray)):
         base_val = float(explainer.expected_value[1])
     else:
         base_val = float(explainer.expected_value)
 
-    # 1b. Waterfall — single attack flow
+    # Waterfall for a single attack flow
     attack_idx = np.where(y_sample == 1)[0]
     if len(attack_idx) > 0:
         print("[SHAP] Generating attack waterfall...")
@@ -203,7 +186,7 @@ def shap_analysis():
         plt.close("all")
         print(f"  wrote {out2}")
 
-    # 1c. Waterfall — single benign flow
+    # Waterfall for a single benign flow
     benign_idx = np.where(y_sample == 0)[0]
     if len(benign_idx) > 0:
         print("[SHAP] Generating benign waterfall...")
@@ -233,10 +216,7 @@ def shap_analysis():
 # ── 2. McNemar's Test ─────────────────────────────────────────────────
 
 def mcnemar_test():
-    """McNemar's test: all model pairs, binary on day split.
-
-    Returns results dict for use by styled table generator.
-    """
+    """Pairwise McNemar's test on binary day-split predictions."""
     print("[McNemar] Loading data and models...")
 
     df = pd.read_parquet(DATA_FILE)
@@ -271,15 +251,13 @@ def mcnemar_test():
         results[name] = {"pred": pred, "correct": correct, "f1": f1, "thr": best_thr}
         print(f"  {name}: F1={f1:.4f}, thr={best_thr:.6f}")
 
-    # Compute pairwise McNemar
+    # Pairwise McNemar
     from scipy.stats import chi2
     lines = [
         "# Statistical Significance Tests\n\n",
-        "## McNemar's Test — Binary Detection on Day Split\n\n",
-        "McNemar's test compares whether two classifiers make errors on the **same** samples.\n",
-        "It uses a 2x2 contingency table of (model_A correct, model_B correct) outcomes.\n\n",
-        "**Null hypothesis**: Both models have the same error rate.\n",
-        "**Significance level**: alpha = 0.05\n\n",
+        "## McNemar's Test -- Binary Detection on Day Split\n\n",
+        "Compares whether two classifiers make errors on the same samples.\n",
+        "H0: both models have the same error rate. alpha = 0.05.\n\n",
     ]
 
     model_names = sorted(results.keys())
@@ -322,10 +300,9 @@ def mcnemar_test():
 
     lines += [
         "\n## Interpretation\n\n",
-        "- If p < 0.05: models make significantly different errors. Performance difference is real, not due to chance.\n",
-        "- If p >= 0.05: no significant difference. Cannot claim one model is better than the other.\n",
-        "- McNemar's test is more rigorous than comparing F1 scores alone, because it accounts for whether the models disagree on the same samples.\n",
-        "- Uses chi-squared approximation with Yates continuity correction.\n",
+        "- p < 0.05: models make significantly different errors.\n",
+        "- p >= 0.05: no significant difference.\n",
+        "- Uses chi-squared with Yates continuity correction.\n",
     ]
 
     out = REPORTS_DIR / "statistical_tests.md"
@@ -338,9 +315,8 @@ def mcnemar_test():
 # ── 3. Styled McNemar Table (PNG) ─────────────────────────────────────
 
 def fig_mcnemar(mcnemar_rows: list[dict] | None = None):
-    """Styled McNemar's test results as publication-quality PNG."""
+    """McNemar's test results as styled PNG table."""
 
-    # Use precomputed rows or hardcoded fallback
     if mcnemar_rows:
         # Sort: RF comparisons first
         def _sort_key(r):
@@ -448,7 +424,7 @@ def fig_mcnemar(mcnemar_rows: list[dict] | None = None):
 # ── 4. Styled Hyperparameter Table (PNG) ──────────────────────────────
 
 def fig_hyperparameters():
-    """Styled hyperparameter comparison table."""
+    """Hyperparameter table as styled PNG."""
     col_labels = ["Hyperparameter", "Logistic Reg.", "Random Forest", "XGBoost", "LightGBM"]
     row_data = [
         ["Framework", "sklearn", "sklearn", "xgboost", "lightgbm"],

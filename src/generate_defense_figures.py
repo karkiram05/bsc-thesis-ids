@@ -1,15 +1,4 @@
-"""Generate additional thesis defense figures.
-
-New figures:
-  1. Day-split attack distribution (shows WHY multi-class fails)
-  2. Binary vs multi-class comparison (key finding)
-  3. Threshold transfer visualization (Youden's J story)
-  4. UNSW vs CICIDS cross-dataset comparison
-  5. Class imbalance visualization (with Benign)
-
-Usage:
-  .venv/bin/python -m src.generate_defense_figures
-"""
+"""Defense figures: day-split distribution, binary vs multi-class, threshold transfer, etc."""
 
 from __future__ import annotations
 
@@ -31,7 +20,7 @@ FIG_DIR.mkdir(parents=True, exist_ok=True)
 # ── 1. Day-split attack distribution ────────────────────────────────────────
 
 def fig_day_attack_distribution():
-    """Show which attacks appear on each day — the key to WHY multi-class fails."""
+    """Attack types per day -- shows why multi-class fails on day split."""
 
     # Hardcoded from data analysis (avoids loading 2.3M rows)
     days_data = {
@@ -44,7 +33,7 @@ def fig_day_attack_distribution():
         "Friday\n(Test)": {"Benign": 385385, "DDoS": 128011, "PortScan": 1850, "Bot": 1397},
     }
 
-    # ATT&CK tactic colors
+    # Colours per attack type
     tactic_colors = {
         "Benign": "#95a5a6",
         "FTP-Patator": "#e74c3c", "SSH-Patator": "#c0392b",  # Credential Access
@@ -96,7 +85,7 @@ def fig_day_attack_distribution():
     ax.set_ylim(1, 500000)
     ax.grid(axis="y", alpha=0.3)
 
-    # Custom legend (no duplicates)
+    # Legend (deduplicated)
     handles = []
     seen = set()
     for day, attacks in days_data.items():
@@ -117,7 +106,7 @@ def fig_day_attack_distribution():
 # ── 2. Binary vs Multi-class comparison ─────────────────────────────────────
 
 def fig_binary_vs_multiclass():
-    """Side-by-side: multi-class collapses on day split, binary survives."""
+    """Binary vs multi-class F1 comparison across splits."""
     models = ["LogReg", "RF", "XGBoost", "LightGBM"]
 
     # Multi-class F1
@@ -178,7 +167,7 @@ def fig_binary_vs_multiclass():
 # ── 3. Threshold transfer visualization ─────────────────────────────────────
 
 def fig_threshold_transfer():
-    """Show how threshold values change between strat and day split."""
+    """Threshold values and impact: strat vs day split."""
     models = ["LogReg", "RF", "XGBoost", "LightGBM"]
 
     # Strat thresholds (high, near 0.5)
@@ -248,7 +237,7 @@ def fig_threshold_transfer():
 # ── 4. UNSW vs CICIDS comparison ────────────────────────────────────────────
 
 def fig_cross_dataset():
-    """Compare results across both datasets."""
+    """CICIDS vs UNSW F1 comparison."""
     models = ["LogReg", "RF", "XGBoost", "LightGBM"]
 
     # Multi-class F1
@@ -299,7 +288,7 @@ def fig_cross_dataset():
 # ── 5. Class imbalance visualization ────────────────────────────────────────
 
 def fig_class_imbalance():
-    """Full class distribution including Benign — shows extreme imbalance."""
+    """Class distribution bar chart (log scale)."""
     classes = [
         ("Benign", 1976967, "#95a5a6"),
         ("DoS Hulk", 172688, "#8B0000"),

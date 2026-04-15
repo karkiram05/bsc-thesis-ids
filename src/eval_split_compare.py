@@ -12,7 +12,7 @@ from src.config import REPORTS_DIR, MODELS_DIR
 
 
 def _run(cmd: list[str]) -> None:
-    """Run a python -m <cmd> subprocess; raise loudly if it fails."""
+    """Run a python -m subprocess, abort on failure."""
     full_cmd = [sys.executable, "-m"] + cmd
     print(f"[eval_split_compare] running: {' '.join(full_cmd)}")
     r = subprocess.run(full_cmd, check=False)
@@ -46,8 +46,7 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
 
     if not args.skip_train:
-        # NOTE: --baseline-only means LogReg + RF only (no XGBoost) for speed.
-        # XGBoost is trained separately in the full pipeline.
+        # --baseline-only = LogReg + RF only (faster)
         _run(["src.train", "--split", "strat", "--out-dir", str(models_strat), "--baseline-only"])
         _run(["src.train", "--split", "day", "--out-dir", str(models_day), "--baseline-only"])
 
@@ -131,20 +130,16 @@ def main() -> None:
 
     lines.append("## 3. Why day-based is more realistic\n\n")
     lines.append(
-        "1. **Temporal generalization**: In a real SOC, models are trained on past traffic "
-        "and deployed on future traffic. Random stratified splits mix flows from all days into "
-        "both train and test, which inflates performance because the model has seen similar "
-        "background traffic patterns at training time.\n\n"
+        "1. **Temporal generalization**: Real IDS models train on past data and see future traffic. "
+        "Stratified splits mix all days, inflating performance.\n\n"
     )
     lines.append(
-        "2. **Day split = strict temporal boundary**: The test set (Friday) is never seen "
-        "during training. Attack tooling, timing, and benign behaviour differ by day. "
-        "A drop in performance on the day split is expected and reflects **honest generalisation**.\n\n"
+        "2. **Day split = strict temporal boundary**: Test (Friday) is never seen in training. "
+        "Performance drop is expected and reflects honest generalisation.\n\n"
     )
     lines.append(
-        "3. **Both matter for the thesis**: Reporting stratified-only is misleading. "
-        "The gap between the two (Δ column above) is itself a finding — it quantifies "
-        "how much the model depends on same-day traffic patterns.\n\n"
+        "3. **Both matter**: The gap (Δ above) quantifies how much the model depends on "
+        "same-day traffic patterns.\n\n"
     )
 
     lines.append("## 4. Leakage check summary\n\n")

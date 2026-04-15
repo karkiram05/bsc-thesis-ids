@@ -1,4 +1,4 @@
-"""Leakage checks: exact duplicates, near-duplicates. Documents 5-tuple limitation."""
+"""Leakage checks: exact duplicates and near-duplicates across splits."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import pandas as pd
 
 from src.config import DATA_FILE, NON_FEATURE, REPORTS_DIR
 
-# 5-tuple columns if present (CICIDS CSV); names may vary
+# 5-tuple columns (may or may not be present)
 TUPLE5_CANDIDATES = [
     ["Source IP", "Destination IP", "Source Port", "Destination Port", "Protocol"],
     ["SourceIP", "DestinationIP", "SourcePort", "DestinationPort", "Protocol"],

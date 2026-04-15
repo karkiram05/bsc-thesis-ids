@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
-"""run_pipeline.py — Run the full thesis pipeline end to end.
-
-Runs every step in order with proper dependency checking.
-Saves a run manifest (run_manifest.json) with timestamps, git hash, and all output paths.
-
-Usage:
-  python run_pipeline.py                    # full run, both splits
-  python run_pipeline.py --split strat      # stratified split only
-  python run_pipeline.py --skip-data        # skip prepare_data (data already built)
-  python run_pipeline.py --dry-run          # print steps without running
-"""
+"""Run the full thesis pipeline end to end."""
 
 from __future__ import annotations
 

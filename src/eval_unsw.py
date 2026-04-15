@@ -1,8 +1,4 @@
-"""Evaluate UNSW-NB15 models: multi-class and binary.
-
-Produces metrics.json with the same structure as eval.py / eval_binary.py
-so results can be compared across datasets.
-"""
+"""Evaluate UNSW-NB15 models: multi-class and binary."""
 
 from __future__ import annotations
 
@@ -40,7 +36,7 @@ def _uses_internal_scaler(model):
 
 
 def eval_multiclass(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: list[str]) -> None:
-    """Evaluate multi-class models on UNSW-NB15 test set."""
+    """Multi-class evaluation on UNSW-NB15 test set."""
     le = joblib.load(models_dir / "label_encoder.joblib")
     class_names = list(le.classes_)
     n_classes = len(class_names)
@@ -60,7 +56,7 @@ def eval_multiclass(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: lis
         print(f"[eval] evaluating {key} ...")
         model = joblib.load(path)
 
-        X_in = X  # all models use raw features (LogReg has internal scaler)
+        X_in = X  # LogReg has internal scaler, trees don't need one
         pred = model.predict(X_in)
         proba = model.predict_proba(X_in) if hasattr(model, "predict_proba") else None
 
@@ -150,7 +146,7 @@ def eval_multiclass(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: lis
 
 
 def eval_binary(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: list[str]) -> None:
-    """Evaluate binary models on UNSW-NB15 test set."""
+    """Binary evaluation on UNSW-NB15 test set."""
     sub = df.loc[df["split"] == "test"]
     X = sub[feat].copy()
     ys = sub["label"].values.astype(int)
@@ -173,7 +169,7 @@ def eval_binary(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: list[st
         proba = model.predict_proba(X)[:, 1]
         proba_val = model.predict_proba(Xv)[:, 1]
 
-        # Threshold tuning on val — Youden's J statistic (maximize TPR − FPR)
+        # Threshold from val via Youden's J
         fpr_val, tpr_val, thr_roc = roc_curve(yv, proba_val)
         j_scores = tpr_val[:-1] - fpr_val[:-1]
         best_j_idx = int(np.argmax(j_scores))

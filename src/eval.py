@@ -1,12 +1,4 @@
-"""Evaluate models: precision, recall, F1, ROC AUC, per-class CM, error analysis.
-
-Changes vs original:
-  - Saves roc_curve_data per class (FPR/TPR arrays + AUC) into metrics.json
-  - Saves pr_curve_data for minority classes (precision/recall arrays + AP) into metrics.json
-  - Both are used by report.py to generate roc_curves.png and pr_curves_minority.png
-  - FIX: ROC-AUC computed only on classes present in test (skips unseen)
-  - FIX: scaling applied only to models that need it
-"""
+"""Evaluate models: precision, recall, F1, ROC AUC, per-class CM, error analysis."""
 from __future__ import annotations
 import argparse, json
 from pathlib import Path
@@ -29,7 +21,7 @@ def _uses_internal_scaler(model):
 
 
 def _is_tree_model(model):
-    """Return True if model is tree-based (RF, XGBoost, LightGBM) and doesn't need scaling."""
+    """Check if model is tree-based (no scaling needed)."""
     base = model
     if hasattr(model, "steps"):
         for _, step in model.steps:
@@ -39,7 +31,7 @@ def _is_tree_model(model):
 
 
 def auc_from_arrays(fpr, tpr):
-    """Trapezoid AUC — avoids sklearn import duplication."""
+    """Trapezoid AUC from FPR/TPR arrays."""
     _trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz", None)
     return float(_trapz(tpr, fpr))
 
@@ -117,23 +109,18 @@ def main():
         print(f"[eval] evaluating {key} ...")
         model    = joblib.load(path)
 
-        # FIX: LogReg pipeline has internal scaler, use raw X.
-        # Tree models (RF, XGB) trained on raw features, also use raw X.
-        # Only apply external scaler if model was trained on scaled data
-        # AND doesn't have its own scaler.
+        # Pick raw or scaled features depending on model type
         if _uses_internal_scaler(model):
-            X_in = X  # pipeline handles scaling internally
+            X_in = X
         elif _is_tree_model(model):
-            X_in = X  # tree models don't need scaling
+            X_in = X
         else:
-            X_in = X_s  # fallback: use external scaler
+            X_in = X_s
 
         raw_pred = model.predict(X_in)
         raw_proba = model.predict_proba(X_in) if hasattr(model, "predict_proba") else None
 
-        # Boosting model label remapping (day split: non-contiguous classes)
-        # XGBoost label remapping (day split: non-contiguous classes).
-        # LightGBM handles non-contiguous labels natively — no remap needed.
+        # XGBoost label remapping (day split has non-contiguous classes)
         remap_classes = None
         if key == "xgboost" and xgb_train_classes is not None:
             remap_classes = xgb_train_classes
@@ -150,7 +137,7 @@ def main():
             pred  = raw_pred
             proba = raw_proba
 
-        # If evaluation includes explicit unseen class, pad probabilities with zero column.
+        # Pad probabilities if we have an unseen class column
         if proba is not None and proba.shape[1] < n_classes:
             padded = np.zeros((proba.shape[0], n_classes), dtype=np.float64)
             padded[:, :proba.shape[1]] = proba
@@ -160,7 +147,7 @@ def main():
             y, pred, labels=np.arange(n_classes), zero_division=0)
         cm = confusion_matrix(y, pred, labels=np.arange(n_classes))
 
-        # Only average over classes that have support (avoid zero-support dragging down macro)
+        # Average only over classes with support
         has_support = sup > 0
         rec = {
             "macro_precision": float(np.mean(pr[has_support])) if has_support.any() else 0.0,
@@ -180,18 +167,17 @@ def main():
 
         # ── ROC AUC + ROC curve data ─────────────────────────────────────
         if proba is not None and n_classes > 2:
-            # Only compute ROC-AUC on classes that have support in test.
+            # ROC-AUC only on classes with support in test
             classes_with_support = [i for i in range(n_classes) if sup[i] > 0]
 
             try:
                 if len(classes_with_support) == 2:
-                    # Exactly 2 classes with support → use binary ROC-AUC
-                    # Pick the higher-indexed class as "positive"
+                    # 2 classes with support -> binary ROC-AUC
                     pos_cls = classes_with_support[1]
                     y_bin = (y == pos_cls).astype(int)
                     rec["roc_auc_ovr"] = float(roc_auc_score(y_bin, proba[:, pos_cls]))
                 elif len(classes_with_support) > 2:
-                    # 3+ classes: remap y to contiguous 0..K-1 matching filtered proba columns
+                    # Remap to contiguous 0..K-1 for sklearn
                     mask = np.isin(y, classes_with_support)
                     old_to_new = {old: new for new, old in enumerate(classes_with_support)}
                     y_remapped = np.array([old_to_new[v] for v in y[mask]], dtype=np.int64)
@@ -234,7 +220,7 @@ def main():
             except Exception:
                 rec["pr_auc_macro"] = None
 
-            # Per-class ROC curve data — stored compactly (sample every 5th point)
+            # Per-class ROC curve data (downsampled for JSON size)
             roc_data = {}
             for i, cls in enumerate(class_names):
                 y_bin = (y == i).astype(int)
@@ -254,7 +240,7 @@ def main():
                     print(f"[warn] ROC curve failed for class '{cls}': {e}")
             rec["roc_curve_data"] = roc_data
 
-            # PR curve data — minority classes only
+            # PR curves for minority classes only
             pr_data = {}
             for i, cls in enumerate(class_names):
                 n_test = int((y == i).sum())

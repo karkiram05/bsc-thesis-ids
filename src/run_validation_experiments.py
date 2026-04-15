@@ -1,24 +1,4 @@
-"""Run three validation experiments for thesis defense.
-
-Exp 1 — Near-duplicate sensitivity:
-    Train+eval with and without near-duplicate filtering. Show the delta is negligible.
-
-Exp 2 — Split policy sensitivity:
-    Policy A: train Mon-Wed, val Thu, test Fri (default).
-    Policy B: train Mon-Tue, val Wed, test Thu.
-    Shows that test-day choice affects results → distribution shift is real.
-
-Exp 3 — Binary operating points:
-    Show precision/recall/F1/FPR at multiple thresholds for binary detection.
-    Includes Best-F1 and FPR-constrained operating points per model.
-    Generates recall-vs-FPR figure.
-
-Outputs:
-    reports/validation/exp1/table_V1_near_duplicate_sensitivity.{csv,md}
-    reports/validation/exp2/table_V2_split_policy_sensitivity.{csv,md}
-    reports/validation/exp3/table_V3_binary_operating_points.{csv,md}
-    reports/validation/exp3/figure_V3_binary_recall_vs_fpr.{png,pdf}
-"""
+"""Validation experiments: near-dup sensitivity, split policy, binary operating points."""
 
 from __future__ import annotations
 
@@ -55,8 +35,9 @@ def _feature_cols(df: pd.DataFrame) -> list[str]:
 
 
 def _train_eval_multiclass(Xt, yt, Xs, ys, n_classes):
-    """Train LogReg + RF + XGBoost on multi-class, return {model: {macro_f1, macro_recall}}."""
+    """Train and eval multi-class models, return macro_f1 and macro_recall per model."""
     import xgboost as xgb
+    import lightgbm as lgb
 
     models = {
         "logreg": Pipeline([
@@ -72,12 +53,16 @@ def _train_eval_multiclass(Xt, yt, Xs, ys, n_classes):
             n_estimators=200, max_depth=8, learning_rate=0.1,
             eval_metric="mlogloss", random_state=RNG, n_jobs=-1, verbosity=0,
         ),
+        "lightgbm": lgb.LGBMClassifier(
+            n_estimators=200, max_depth=12, learning_rate=0.1,
+            is_unbalance=True, random_state=RNG, n_jobs=-1, verbose=-1,
+        ),
     }
 
     results = {}
     for name, model in models.items():
-        # XGBoost needs contiguous labels
-        if name == "xgboost":
+        # XGBoost and LightGBM need contiguous 0..N-1 labels
+        if name in ("xgboost", "lightgbm"):
             train_classes = sorted(set(yt.tolist()))
             remap = {c: i for i, c in enumerate(train_classes)}
             yt_m = np.array([remap[v] for v in yt.tolist()], dtype=np.int32)
@@ -143,7 +128,7 @@ def exp1_near_duplicate_sensitivity(df: pd.DataFrame) -> None:
 
     # Build table
     rows = []
-    for model in ["logreg", "random_forest", "xgboost"]:
+    for model in ["logreg", "random_forest", "xgboost", "lightgbm"]:
         b, f = baseline[model], filtered[model]
         rows.append({
             "Model": model,
@@ -158,6 +143,27 @@ def exp1_near_duplicate_sensitivity(df: pd.DataFrame) -> None:
     table = pd.DataFrame(rows)
     table.to_csv(out / "table_V1_near_duplicate_sensitivity.csv", index=False)
     table.to_markdown(out / "table_V1_near_duplicate_sensitivity.md", index=False)
+
+    # Grouped bar chart: baseline vs filtered F1
+    models = table["Model"].tolist()
+    x = np.arange(len(models))
+    w = 0.35
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.bar(x - w / 2, table["Baseline Macro-F1"], w, label="Baseline", color="#4C72B0")
+    ax.bar(x + w / 2, table["Filtered Macro-F1"], w, label="Near-dup filtered", color="#DD8452")
+    ax.set_ylabel("Macro F1")
+    ax.set_title("V1: Near-Duplicate Sensitivity")
+    ax.set_xticks(x)
+    ax.set_xticklabels(models)
+    ax.set_ylim(0.82, 0.90)
+    ax.legend()
+    for i, (b, f) in enumerate(zip(table["Baseline Macro-F1"], table["Filtered Macro-F1"])):
+        delta = f - b
+        ax.text(i, max(b, f) + 0.002, f"Δ={delta:+.3f}", ha="center", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(out / "figure_V1_near_duplicate_sensitivity.png", dpi=150)
+    plt.close(fig)
+
     print(f"[exp1] wrote {out}")
 
 
@@ -200,7 +206,7 @@ def exp2_split_policy_sensitivity(df: pd.DataFrame) -> None:
         results[policy_name] = {"res": res, "test_day": policy["test"]}
 
     rows = []
-    for model in ["logreg", "random_forest", "xgboost"]:
+    for model in ["logreg", "random_forest", "xgboost", "lightgbm"]:
         a = results["A"]["res"][model]
         b = results["B"]["res"][model]
         rows.append({
@@ -215,6 +221,29 @@ def exp2_split_policy_sensitivity(df: pd.DataFrame) -> None:
     table = pd.DataFrame(rows)
     table.to_csv(out / "table_V2_split_policy_sensitivity.csv", index=False)
     table.to_markdown(out / "table_V2_split_policy_sensitivity.md", index=False)
+
+    # Grouped bar chart: policy A vs policy B
+    models = table["Model"].tolist()
+    x = np.arange(len(models))
+    w = 0.35
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.bar(x - w / 2, table["Policy A Macro-F1"], w,
+           label=f"Policy A (test={results['A']['test_day']})", color="#4C72B0")
+    ax.bar(x + w / 2, table["Policy B Macro-F1"], w,
+           label=f"Policy B (test={results['B']['test_day']})", color="#DD8452")
+    ax.set_ylabel("Macro F1")
+    ax.set_title("V2: Split Policy Sensitivity")
+    ax.set_xticks(x)
+    ax.set_xticklabels(models)
+    ax.set_ylim(0.8, 1.02)
+    ax.legend()
+    for i, (a_f1, b_f1) in enumerate(zip(table["Policy A Macro-F1"], table["Policy B Macro-F1"])):
+        delta = b_f1 - a_f1
+        ax.text(i, max(a_f1, b_f1) + 0.005, f"Δ={delta:+.3f}", ha="center", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(out / "figure_V2_split_policy_sensitivity.png", dpi=150)
+    plt.close(fig)
+
     print(f"[exp2] wrote {out}")
 
 

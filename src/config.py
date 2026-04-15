@@ -16,15 +16,15 @@ UNSW_PROCESSED_DIR = ROOT / "data" / "processed" / "unsw-nb15"
 UNSW_DATA_FILE = UNSW_PROCESSED_DIR / "all_clean.parquet"
 UNSW_META_FILE = UNSW_PROCESSED_DIR / "meta.md"
 
-# Columns to drop from UNSW-NB15 (not features)
+# Non-feature columns in UNSW-NB15
 UNSW_NON_FEATURE = frozenset({
     "id", "attack_cat", "label", "split",
 })
 
-# UNSW-NB15 categorical columns (need encoding)
+# UNSW-NB15 categorical columns
 UNSW_CATEGORICAL = ["proto", "service", "state"]
 
-# Leakage columns — CICFlowMeter-derived rates, exclude to avoid shortcut learning
+# Leakage columns — derived rates that leak label info
 LEAKAGE_COLUMNS = frozenset({
     "Flow Bytes/s",
     "Flow Packets/s",
@@ -45,19 +45,9 @@ NON_FEATURE = frozenset({
     "row_hash",
 })
 
-# Day split — temporal ordering preserved:
-#   Train = Mon-Wed  (Benign, DoS variants, FTP/SSH brute force, Heartbleed)
-#   Val   = Thu      (Benign, Web Attacks, Infiltration) — threshold tuning
-#   Test  = Fri      (Benign, Bot, DDoS, PortScan) — final held-out evaluation
-#
-# RATIONALE: In deployment, the model is trained on past data and evaluated on
-# *future* data.  Thursday (day 4) comes before Friday (day 5), so we tune
-# thresholds on Thursday and report final metrics on Friday.  This is the
-# standard temporal-validation protocol.
-#
-# NOTE: attack types are disjoint across days.  Multi-class evaluation under
-# this split is expected to fail on unseen classes.  Binary (benign vs attack)
-# remains meaningful.
+# Day split — temporal ordering: train Mon-Wed, val Thu, test Fri.
+# Attack types are disjoint across days, so multi-class fails on unseen classes.
+# Binary (benign vs attack) still works.
 DAY_TO_SPLIT = {
     "Monday": "train",
     "Tuesday": "train",

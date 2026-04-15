@@ -1,14 +1,4 @@
-"""Generate additional thesis figures from existing data.
-
-Figures:
-  1. LODO fold-level performance (grouped bar per model per fold)
-  2. Calibration curves (reliability diagrams) for binary classifiers
-  3. Master results table (all experiments, both datasets, both tasks)
-  4. Strat-vs-day generalisation gap for ALL models (multi + binary)
-
-Usage:
-  python -m src.generate_extra_figures
-"""
+"""Generate extra thesis figures: LODO folds, calibration, master table, generalisation gap."""
 
 from __future__ import annotations
 
@@ -29,7 +19,7 @@ FIG_DIR.mkdir(parents=True, exist_ok=True)
 # ── 1. LODO fold-level performance ──────────────────────────────────────────
 
 def fig_lodo_folds():
-    """Grouped bar chart: ROC-AUC and F1 per fold per model."""
+    """LODO fold-level ROC-AUC and F1 bar chart."""
     data = json.loads((REPORTS / "lodo" / "lodo_results.json").read_text())
     df = pd.DataFrame(data)
 
@@ -79,7 +69,7 @@ def fig_lodo_folds():
 # ── 2. Calibration curves ──────────────────────────────────────────────────
 
 def fig_calibration():
-    """Calibration (reliability) diagrams for binary day split."""
+    """Calibration curves for binary classifiers."""
     models = ["logreg", "random_forest", "xgboost", "lightgbm"]
     labels = ["LogReg", "RF", "XGBoost", "LightGBM"]
     colors = ["#e74c3c", "#2ecc71", "#3498db", "#9b59b6"]
@@ -117,7 +107,7 @@ def fig_calibration():
 # ── 3. Master results table ─────────────────────────────────────────────────
 
 def fig_master_table():
-    """Consolidated CSV + markdown table across all experiments."""
+    """Master results table across all experiments."""
     rows = []
     models = ["logreg", "random_forest", "xgboost", "lightgbm"]
 
@@ -200,7 +190,7 @@ def fig_master_table():
 # ── 4. Generalisation gap — all models, multi + binary ───────────────────────
 
 def fig_generalisation_gap():
-    """Strat vs day F1 for all 4 models, multiclass + binary side by side."""
+    """Strat vs day F1 for all models."""
     models = ["logreg", "random_forest", "xgboost", "lightgbm"]
     labels = ["LogReg", "RF", "XGBoost", "LightGBM"]
     colors_strat = "#3498db"
@@ -265,7 +255,7 @@ def fig_generalisation_gap():
 # ── 5. Feature importance overlap: CICIDS vs UNSW ───────────────────────────
 
 def fig_feature_overlap():
-    """Side-by-side top-10 features for XGBoost on CICIDS vs UNSW."""
+    """Top-15 XGBoost features: CICIDS vs UNSW side by side."""
     cicids = pd.read_csv(REPORTS / "metrics_strat" / "feature_importance_xgboost.csv")
     unsw = pd.read_csv(REPORTS / "metrics_unsw" / "multiclass" / "feature_importance_xgboost.csv")
 

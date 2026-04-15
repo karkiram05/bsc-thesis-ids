@@ -1,13 +1,4 @@
-"""Binary IDS evaluation: benign vs attack.
-
-Evaluation-only script: loads saved binary models and evaluates on test split.
-Thresholds are selected on validation split and then applied once on test.
-
-Usage:
-  python -m src.train_binary --split strat --out-dir models/binary_strat
-  python -m src.eval_binary  --split strat --models-dir models --out-dir reports/metrics_strat_binary
-  python -m src.eval_binary  --split strat --models-dir models/binary_strat --out-dir reports/metrics_strat_binary
-"""
+"""Binary IDS evaluation: benign vs attack. Threshold tuned on val, applied on test."""
 
 from __future__ import annotations
 
@@ -59,7 +50,7 @@ def _load_binary_splits(df: pd.DataFrame, split_col: str):
 
 
 def _threshold_table(y_true, y_prob, thresholds=None):
-    """Return DataFrame with threshold / precision / recall / F1 / FPR rows."""
+    """Sweep thresholds, return precision/recall/F1/FPR per threshold."""
     if thresholds is None:
         thresholds = np.arange(0.01, 0.96, 0.01)  # Fine grid (0.01 steps)
     rows = []
@@ -82,7 +73,7 @@ def _uses_internal_scaler(model):
 
 
 def _resolve_models_dir(models_dir: Path, split: str) -> Path:
-    """Accept either models/ or a direct binary_<split>/ directory."""
+    """Find binary model dir (tries direct path, then nested binary_<split>/)."""
     direct_dir = Path(models_dir)
     nested_dir = direct_dir / f"binary_{split}"
 
@@ -129,15 +120,13 @@ def main() -> None:
         raise SystemExit(f"Missing {scaler_path}. Re-run src.train_binary.")
     scaler = joblib.load(scaler_path)
 
-    # --- Load trained binary models (evaluation only) ---
+    # Load trained binary models
     models: dict[str, tuple[object, pd.DataFrame | np.ndarray, pd.DataFrame | np.ndarray]] = {}
     for key in ["logreg", "random_forest", "xgboost", "lightgbm", "xgboost_calibrated"]:
         p = bin_models_dir / f"{key}.joblib"
         if not p.exists():
             continue
         model = joblib.load(p)
-        # All models receive raw features: LogReg has internal pipeline scaler,
-        # tree models (RF, XGB, LightGBM) are scale-invariant.
         models[key] = (model, Xv, Xs)
 
     if not models:
@@ -152,17 +141,11 @@ def main() -> None:
     for key, (model, X_val, X_test) in models.items():
         proba = model.predict_proba(X_test)[:, 1]
 
-        # Optimal threshold chosen on val, never test.
-        # Primary strategy: Youden's J statistic (maximize TPR − FPR).
-        # Youden's J is prevalence-invariant and doesn't over-fit to the
-        # val class distribution — critical for the day split where val
-        # (Thursday) and test (Friday) have disjoint attack types.
-        #
-        # For comparison we also compute Best-F1 (from PR curve); this is
-        # reported in the output but NOT used for the primary threshold.
+        # Threshold from val using Youden's J (prevalence-invariant).
+        # Also compute Best-F1 from PR curve for comparison.
         proba_val = model.predict_proba(X_val)[:, 1]
 
-        # Reference: Best-F1 from PR curve (for comparison only)
+        # Best-F1 from PR curve (for comparison only)
         prec_val, rec_val, thr_pr = precision_recall_curve(yv, proba_val)
         with np.errstate(divide="ignore", invalid="ignore"):
             f1_pr = np.where(
@@ -173,7 +156,7 @@ def main() -> None:
         best_pr_idx = int(np.argmax(f1_pr))
         thr_bestf1 = float(thr_pr[best_pr_idx])
 
-        # Primary: Youden's J statistic (maximize TPR − FPR on val ROC)
+        # Youden's J (maximize TPR - FPR on val)
         fpr_val, tpr_val, thr_roc = roc_curve(yv, proba_val)
         j_scores = tpr_val[:-1] - fpr_val[:-1]
         best_j_idx = int(np.argmax(j_scores))
@@ -182,7 +165,7 @@ def main() -> None:
         best_thr = thr_youden
         thr_source = "Youden's J"
 
-        # Evaluate Youden on val for reporting
+        # Val F1 at Youden threshold
         pred_youden = (proba_val >= thr_youden).astype(int)
         _, _, best_val_f1, _ = precision_recall_fscore_support(
             yv, pred_youden, average="binary", zero_division=0)
@@ -193,7 +176,7 @@ def main() -> None:
               f"(Best-F1 thr={thr_bestf1:.4f}, Youden thr={thr_youden:.6f}, "
               f"valF1={best_val_f1:.4f})")
 
-        # Also generate threshold table for reporting
+        # Threshold table for reporting
         thr_table_val = _threshold_table(yv, proba_val)
 
         pred = (proba >= best_thr).astype(int)

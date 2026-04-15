@@ -1,10 +1,4 @@
-"""Sanity check: print dataset shape, class distribution, split coverage, dropped columns.
-
-Writes reports/sanity_check.md and prints to stdout.
-
-Usage:
-  python -m src.sanity_check
-"""
+"""Sanity check: dataset shape, class distribution, split coverage."""
 
 from __future__ import annotations
 

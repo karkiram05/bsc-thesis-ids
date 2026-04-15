@@ -28,7 +28,7 @@ def main() -> None:
 
     UNSW_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
-    # The pre-split files have headers and are the canonical way to use UNSW-NB15
+    # Load pre-split CSV files
     train_csv = UNSW_RAW_DIR / "UNSW_NB15_training-set.csv"
     test_csv = UNSW_RAW_DIR / "UNSW_NB15_testing-set.csv"
     if not train_csv.exists() or not test_csv.exists():
@@ -49,7 +49,6 @@ def main() -> None:
     for df in [df_train, df_test]:
         df["attack_cat"] = df["attack_cat"].fillna("Normal").astype(str).str.strip()
         df.loc[df["attack_cat"] == "", "attack_cat"] = "Normal"
-        # Some entries have trailing spaces or inconsistent casing
         df["attack_cat"] = df["attack_cat"].str.strip()
 
     # Show label distribution
@@ -58,12 +57,11 @@ def main() -> None:
     print("[labels] testing-set:")
     print(df_test["attack_cat"].value_counts().to_string())
 
-    # Assign splits: split the original training set into train/val,
-    # keep the original test set as test
+    # Splits: carve val from training, keep original test
     df_train["split"] = "train"
     df_test["split"] = "test"
 
-    # Create val split from the training set (stratified by attack_cat)
+    # Stratified val split from training set
     train_idx = df_train.index.to_numpy()
     y_strat = df_train["attack_cat"]
     _, val_idx = train_test_split(
@@ -78,11 +76,11 @@ def main() -> None:
     # Combine
     df = pd.concat([df_train, df_test], ignore_index=True)
 
-    # Drop the 'id' column (row index, not a feature)
+    # Drop id column
     if "id" in df.columns:
         df = df.drop(columns=["id"])
 
-    # Handle Inf/NaN in numeric columns
+    # Clean Inf/NaN
     numeric = df.select_dtypes(include=[np.number]).columns
     before = len(df)
     if len(numeric):
@@ -102,7 +100,7 @@ def main() -> None:
     df.to_parquet(UNSW_DATA_FILE, index=False)
     print(f"[save] {UNSW_DATA_FILE}")
 
-    # Feature list (everything except non-feature columns)
+    # Feature list
     feat = [c for c in df.columns if c not in UNSW_NON_FEATURE]
     meta_lines = [
         "# Processed UNSW-NB15\n\n",

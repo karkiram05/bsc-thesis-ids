@@ -1,21 +1,7 @@
-"""Leave-One-Day-Out (LODO) cross-validation for binary IDS.
+"""Leave-One-Day-Out (LODO) binary cross-validation.
 
-Trains binary (Benign vs Attack) models using 4 days and tests on the held-out
-day. Repeats for all 5 days. Reports mean ± std of ROC-AUC, PR-AUC, F1, and FPR.
-
-This provides temporal cross-validation evidence that binary detection
-generalises across days, even though multi-class detection fails due to
-disjoint attack types.
-
-Output:
-  reports/lodo/
-    - lodo_results.json      — per-fold metrics
-    - lodo_summary.md        — formatted table for thesis
-    - lodo_summary.csv       — machine-readable summary
-
-Usage:
-  python -m src.eval_lodo
-  python -m src.eval_lodo --baseline-only   # skip XGBoost
+Train on 4 days, test on held-out day, repeat for all 5 days.
+Reports mean +/- std of ROC-AUC, PR-AUC, F1, and FPR.
 """
 
 from __future__ import annotations
@@ -118,8 +104,7 @@ def main() -> None:
         X_test = test_df[feat]
         y_test = _binary_y(test_df)
 
-        # Inner split: use one of the training days as val for threshold tuning.
-        # Pick the last training day chronologically (closest to test).
+        # Use last training day as val for threshold tuning
         day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
         train_days_ordered = [d for d in day_order if d in train_days]
         inner_val_day = train_days_ordered[-1]
@@ -148,8 +133,7 @@ def main() -> None:
 
             proba = model.predict_proba(X_test)[:, 1]
 
-            # Tune threshold on inner val set — Youden's J statistic
-            # (prevalence-invariant, transfers across distribution shifts)
+            # Youden's J threshold from inner val set
             if n_attack_val > 0:
                 proba_val = model.predict_proba(X_val)[:, 1]
                 fpr_val, tpr_val, thr_roc = roc_curve(y_val, proba_val)
@@ -174,7 +158,7 @@ def main() -> None:
                 "threshold": round(best_thr, 6),
             }
 
-            # Monday is benign-only — ROC-AUC and PR-AUC are undefined
+            # Monday is benign-only, so ROC-AUC/PR-AUC undefined
             if n_attack_test == 0:
                 # Only FPR is meaningful
                 fp = int(((pred == 1) & (y_test == 0)).sum())
@@ -293,12 +277,10 @@ def main() -> None:
 
     lines += [
         "\n## Interpretation\n\n",
-        "- If ROC-AUC is consistently high across folds (>0.95), binary detection generalises well temporally.\n",
-        "- Thresholds are tuned per fold using Youden's J statistic (maximize TPR − FPR) on an inner validation day.\n",
-        "- Youden's J is prevalence-invariant, so thresholds transfer better across days with different attack rates.\n",
-        "- F1 depends on both discrimination (AUC) and threshold calibration. High AUC with low F1 means the threshold doesn't transfer.\n",
-        "- Monday (benign-only) tests the false positive rate in isolation.\n",
-        "- This complements the single day-split evaluation by providing variance estimates.\n",
+        "- ROC-AUC > 0.95 across folds = binary detection generalises temporally.\n",
+        "- Thresholds tuned per fold via Youden's J (prevalence-invariant).\n",
+        "- High AUC + low F1 = threshold doesn't transfer well.\n",
+        "- Monday (benign-only) tests FPR in isolation.\n",
     ]
 
     md_path = OUT_DIR / "lodo_summary.md"

@@ -1,8 +1,4 @@
-"""Train models on UNSW-NB15: multi-class (attack_cat) and binary (Normal vs Attack).
-
-Same methodology as CICIDS2017 pipeline: LogReg, RandomForest, XGBoost.
-Uses the author-provided train/test split with a validation set carved from training.
-"""
+"""Train models on UNSW-NB15: multi-class and binary."""
 
 from __future__ import annotations
 
@@ -80,13 +76,13 @@ def main() -> None:
         print(f"[load] Multi-class: train={len(yt)} val={len(yv)} test={len(ys)} "
               f"features={len(feat)} classes={len(class_names)}")
 
-    # Scaler (saved for interface consistency)
+    # Scaler (only LogReg needs it)
     scaler = StandardScaler()
     scaler.fit(Xt)
 
     models: list[tuple[str, object]] = []
 
-    # LogReg with internal scaler
+    # LogReg
     print("[train] LogReg ...")
     lr = Pipeline([
         ("scaler", StandardScaler()),

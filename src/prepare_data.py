@@ -28,7 +28,7 @@ def infer_day_from_filename(name: str) -> str:
     raise ValueError(f"Cannot infer day from filename: {name}")
 
 
-# Common encoding junk (e.g. "Web Attack XSS") -> replace with canonical
+# Label normalization fixes
 LABEL_FIXES = (
     ("\ufffd", ""),           # Unicode replacement char
     ("  ", " "),
@@ -96,7 +96,7 @@ def main() -> None:
     df = pd.concat(dfs, ignore_index=True)
     print(f"[concat] shape={df.shape}")
 
-    # Remove leakage columns (match by exact or case-insensitive)
+    # Remove leakage columns
     if not args.no_leakage_drop:
         leak_set = {x.lower() for x in LEAKAGE_COLUMNS}
         drop = [c for c in df.columns if c in LEAKAGE_COLUMNS or c.lower() in leak_set]
@@ -146,11 +146,7 @@ def main() -> None:
         raise SystemExit(f"Unknown day values: {bad}")
     df["split"] = df["split_day"]
 
-    # ── Stratified split ──────────────────────────────────────────────
-    # FIX: Stratify on attack_type (multi-class) instead of is_attack
-    # (binary).  This ensures rare classes like Heartbleed (11 samples)
-    # are represented in every split, preventing degenerate folds where
-    # a class appears only in train or only in test.
+    # Stratified split on attack_type (not binary) so rare classes appear in all splits
     y_strat = df["attack_type"].astype(str)
     idx = df.index.to_numpy()
     test_size = 0.2233

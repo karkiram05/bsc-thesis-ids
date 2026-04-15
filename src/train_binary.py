@@ -1,17 +1,4 @@
-"""Train binary IDS models: Benign vs Attack.
-
-This exists because CICIDS2017 "day split" has non-overlapping attack labels across days,
-so multiclass temporal evaluation is not meaningful. Binary remains meaningful.
-
-Outputs:
-  <out-dir>/
-    - meta.json
-    - feature_names.json
-    - scaler.joblib
-    - logreg.joblib
-    - random_forest.joblib
-    - xgboost.joblib   (unless --baseline-only)
-"""
+"""Train binary IDS models: Benign vs Attack."""
 
 from __future__ import annotations
 
@@ -87,13 +74,13 @@ def main() -> None:
         f"pos_rate_train={yt.mean():.4f}"
     )
 
-    # Scaler saved for interface consistency; tree models don't need it.
+    # Scaler saved for eval.py interface; only LogReg needs it
     scaler = StandardScaler()
     scaler.fit(Xt)
 
     models: list[tuple[str, object]] = []
 
-    # LogReg (pipeline with its own scaler)
+    # LogReg
     lr = Pipeline([
         ("scaler", StandardScaler()),
         ("clf", LogisticRegression(
@@ -107,7 +94,7 @@ def main() -> None:
     lr.fit(Xt, yt)
     models.append(("logreg", lr))
 
-    # RandomForest — tree-based, raw features
+    # RandomForest
     rf = RandomForestClassifier(
         n_estimators=300,
         max_depth=24,
@@ -116,10 +103,10 @@ def main() -> None:
         random_state=RNG,
         n_jobs=-1,
     )
-    rf.fit(Xt, yt)  # FIX: raw features, not scaled
+    rf.fit(Xt, yt)
     models.append(("random_forest", rf))
 
-    # XGBoost — tree-based, raw features
+    # XGBoost
     if not args.baseline_only:
         import xgboost as xgb
         n_pos = max(int(yt.sum()), 1)
@@ -139,10 +126,10 @@ def main() -> None:
             n_jobs=-1,
             scale_pos_weight=scale_pos_weight,
         )
-        xgb_clf.fit(Xt, yt, verbose=False)  # FIX: raw features
+        xgb_clf.fit(Xt, yt, verbose=False)
         models.append(("xgboost", xgb_clf))
 
-        # LightGBM — histogram-based boosting
+        # LightGBM
         import lightgbm as lgb
         print("[train] LightGBM ...")
         lgb_clf = lgb.LGBMClassifier(

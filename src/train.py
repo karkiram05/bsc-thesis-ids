@@ -91,57 +91,47 @@ def main():
     n_classes = len(le.classes_)
     print(f"[load] train={len(yt)} val={len(yv)} test={len(ys)} features={len(feat)} classes={n_classes}")
 
-    # Scaler: saved for models that need it.
-    # NOTE: RF and XGBoost are tree-based and invariant to monotonic feature
-    # transforms.  We still save a scaler so eval.py has a consistent interface,
-    # but only LogReg actually requires it (via its internal Pipeline scaler).
+    # Scaler saved for eval.py interface; only LogReg actually needs it
     scaler = StandardScaler()
-    scaler.fit(Xt)  # Fit only; tree models use raw features, LogReg has internal scaler
+    scaler.fit(Xt)
 
     models = []
 
-    # LogReg — uses its own internal scaler pipeline
+    # LogReg
     print("[train] LogReg ...")
     lr = Pipeline([("scaler", StandardScaler()), ("clf", LogisticRegression(solver="saga", max_iter=2000, tol=1e-3, class_weight="balanced", random_state=RNG))])
     lr.fit(Xt, yt)
     models.append(("logreg", lr))
     print("[train] LogReg done.")
 
-    # RandomForest — tree-based, does NOT need scaling.
-    # We feed raw features so feature importances are directly interpretable.
+    # RandomForest — raw features, no scaling needed
     print("[train] RandomForest ...")
     rf = RandomForestClassifier(n_estimators=200, max_depth=24, max_features="sqrt", class_weight="balanced_subsample", random_state=RNG, n_jobs=-1)
-    rf.fit(Xt, yt)  # FIX: use Xt (raw) instead of Xt_s (scaled)
+    rf.fit(Xt, yt)
     models.append(("random_forest", rf))
     print("[train] RandomForest done.")
 
     if not args.baseline_only:
         import xgboost as xgb
         print("[train] XGBoost ...")
-        # For day split, training labels may not be contiguous 0..N-1.
-        # Remap to contiguous for XGBoost, save mapping for eval to undo.
+        # XGBoost needs contiguous 0..N-1 labels; remap for day split
         train_classes = sorted(set(yt.tolist()))
         remap = {c: i for i, c in enumerate(train_classes)}
         reverse_remap = {i: c for c, i in remap.items()}
         yt_xgb = np.array([remap[v] for v in yt.tolist()], dtype=np.int32)
-        # XGBoost is tree-based — scaling is unnecessary, feed raw features.
         xgb_clf = xgb.XGBClassifier(n_estimators=200, max_depth=8, learning_rate=0.1,
             eval_metric="mlogloss", random_state=RNG, n_jobs=-1, verbosity=0)
-        xgb_clf.fit(Xt, yt_xgb)  # FIX: use Xt (raw) instead of Xt_s
+        xgb_clf.fit(Xt, yt_xgb)
         models.append(("xgboost", xgb_clf))
         with open(out / "xgboost_label_remap.json", "w") as f:
             json.dump({"train_classes": train_classes, "n_global_classes": n_classes}, f, indent=2)
         print("[train] XGBoost done.")
 
-        # LightGBM — histogram-based boosting, fast and competitive with XGBoost.
-        # LightGBM handles non-contiguous labels natively (unlike XGBoost),
-        # so we train on the original yt labels — no remapping needed.
+        # LightGBM — handles non-contiguous labels natively, no remap needed
         import lightgbm as lgb
         print("[train] LightGBM ...")
-        # NOTE: class_weight="balanced" over-corrects for 15-class CICIDS2017
-        # (Benign ~80%), giving macro_f1=0.05. Without it, LightGBM gets ~0.30 on strat
-        # vs XGBoost's 0.86 — LightGBM's multi-class performance is weaker on this dataset.
-        # This is a valid thesis finding; we keep default params for honest comparison.
+        # class_weight="balanced" over-corrects here (macro_f1 drops to 0.05),
+        # so we use default params
         lgb_clf = lgb.LGBMClassifier(
             n_estimators=200, max_depth=8, learning_rate=0.1,
             num_leaves=63, min_child_samples=20,

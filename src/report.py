@@ -1,19 +1,4 @@
-"""
-report.py — IDS Pipeline Report Generator
-==========================================
-Generates report.md + publication-quality figures for thesis.
-
-Figures produced:
-  - confusion_matrix.png                  (normalized + raw counts, dark theme)
-  - feature_importance_xgboost.png        (diverging bar, colour by group)
-  - feature_importance_random_forest.png
-  - model_comparison.png                  (grouped bar comparing all 3 models)
-  - per_class_f1.png                      (per-class F1 heatmap with fixed legend)
-  - roc_curves.png                        [NEW] per-class ROC/AUC, XGBoost OvR
-  - pr_curves_minority.png               [NEW] PR curves for rare classes
-  - crossdataset_delta.png               [NEW] generalisation gap chart
-  - attck_mapping_table.png              [NEW] ATT&CK mapping heatmap table
-"""
+"""Generate report.md and thesis figures from evaluation metrics."""
 
 from __future__ import annotations
 
@@ -32,9 +17,7 @@ import matplotlib.ticker as mticker
 
 from src.config import METRICS_DIR, FIGURES_DIR, ALERTS_DIR, REPORTS_DIR
 
-# ---------------------------------------------------------------------------
-# Design system — dark, professional, security engineering aesthetic
-# ---------------------------------------------------------------------------
+# Dark theme colours
 BG       = "#0d1117"
 SURFACE  = "#161b22"
 BORDER   = "#30363d"
@@ -216,7 +199,6 @@ def plot_confusion_matrix(cm: np.ndarray, labels: list[str], fdir: Path, model: 
 
 # ---------------------------------------------------------------------------
 # Figure 2: Feature Importance
-# FIX: removed the "Top signal" annotation that rendered as a stray tooltip
 # ---------------------------------------------------------------------------
 
 def plot_feature_importance(imp_df: pd.DataFrame, fdir: Path, model: str) -> None:
@@ -251,8 +233,6 @@ def plot_feature_importance(imp_df: pd.DataFrame, fdir: Path, model: str) -> Non
     ax.legend(handles=patches, loc="lower right", fontsize=8,
               title="Feature Group", title_fontsize=8, framealpha=0.4)
 
-    # FIX: annotation removed — bars already communicate ranking clearly
-    # The stray "Top signal: ..." callout was confusing; ranking is self-evident
 
     ax.set_xlim(0, top["importance"].max() * 1.18)
     ax.spines["left"].set_color(BORDER)
@@ -267,7 +247,6 @@ def plot_feature_importance(imp_df: pd.DataFrame, fdir: Path, model: str) -> Non
 
 # ---------------------------------------------------------------------------
 # Figure 3: Model Comparison
-# FIX: accuracy row moved to clean text above bars instead of buried below axis
 # ---------------------------------------------------------------------------
 
 def plot_model_comparison(full: dict, fdir: Path) -> None:
@@ -306,8 +285,7 @@ def plot_model_comparison(full: dict, fdir: Path) -> None:
     ax.spines["left"].set_color(BORDER)
     ax.spines["bottom"].set_color(BORDER)
 
-    # FIX: accuracy shown as clean labelled text above bars at y=1.10
-    # Previously this was buried below the x-axis in a tiny hard-to-read font
+    # Accuracy / ROC text above bars
     for i, model in enumerate(models):
         acc = full[model].get("accuracy") or full[model].get("micro_f1")
         roc = full[model].get("roc_auc_ovr") or full[model].get("roc_auc")
@@ -315,7 +293,6 @@ def plot_model_comparison(full: dict, fdir: Path) -> None:
             ax.text(i + width, 1.10, f"Acc: {acc:.4f}",
                     ha="center", color=MUTED, fontsize=8, style="italic")
         elif roc is not None:
-            # fallback: show ROC AUC if accuracy not in metrics
             ax.text(i + width, 1.10, f"ROC: {roc:.4f}",
                     ha="center", color=MUTED, fontsize=8, style="italic")
 
@@ -328,7 +305,6 @@ def plot_model_comparison(full: dict, fdir: Path) -> None:
 
 # ---------------------------------------------------------------------------
 # Figure 4: Per-class F1 heatmap
-# FIX: severity legend added so [C]/[H]/[M] labels are explained
 # ---------------------------------------------------------------------------
 
 def plot_per_class_f1(full: dict, fdir: Path) -> None:
@@ -382,7 +358,7 @@ def plot_per_class_f1(full: dict, fdir: Path) -> None:
             ax.text(ci, -0.7, sev_text, ha="center", fontsize=6.5,
                     color=sev_color, fontweight="bold")
 
-    # FIX: explicit severity legend so [C]/[H]/[M] are explained
+    # Severity legend
     sev_patches = [
         mpatches.Patch(color=RED,      label="[C] = Critical severity"),
         mpatches.Patch(color=ORANGE,   label="[H] = High severity"),
@@ -404,14 +380,11 @@ def plot_per_class_f1(full: dict, fdir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Figure 5 [NEW]: ROC curves per class — XGBoost OvR
+# Figure 5: ROC curves per class — XGBoost OvR
 # ---------------------------------------------------------------------------
 
 def plot_roc_curves(full: dict, fdir: Path) -> None:
-    """
-    Requires eval.py to have saved roc_curve_data in metrics.json.
-    Falls back gracefully if data not present.
-    """
+    """Per-class ROC curves from roc_curve_data in metrics.json."""
     _style()
     roc_data = full.get("xgboost", {}).get("roc_curve_data")
     if not roc_data:
@@ -450,14 +423,11 @@ def plot_roc_curves(full: dict, fdir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Figure 6 [NEW]: Precision-Recall curves — minority classes only
+# Figure 6: Precision-Recall curves — minority classes only
 # ---------------------------------------------------------------------------
 
 def plot_pr_curves(full: dict, fdir: Path) -> None:
-    """
-    Requires eval.py to have saved pr_curve_data in metrics.json.
-    Falls back gracefully if data not present.
-    """
+    """PR curves for minority classes from pr_curve_data in metrics.json."""
     _style()
     pr_data = full.get("xgboost", {}).get("pr_curve_data")
     if not pr_data:
@@ -492,16 +462,11 @@ def plot_pr_curves(full: dict, fdir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Figure 7 [NEW]: Cross-dataset generalisation delta
+# Figure 7: Cross-dataset generalisation delta
 # ---------------------------------------------------------------------------
 
 def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
-    """
-    Reads reports/metrics_day/metrics.json (day-based split as the harder eval)
-    and compares to strat split, showing the generalisation gap.
-
-    If metrics_day does not exist yet, prints a placeholder instruction.
-    """
+    """Generalisation gap chart: strat vs day split."""
     _style()
 
     strat_path = cross_metrics_path.parent.parent / "metrics_strat" / "metrics.json"
@@ -582,14 +547,11 @@ def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Figure 8 [NEW]: MITRE ATT&CK mapping heatmap table
+# Figure 8: MITRE ATT&CK mapping heatmap table
 # ---------------------------------------------------------------------------
 
 def plot_attck_mapping_table(full: dict, fdir: Path, alerts_path: Path) -> None:
-    """
-    Builds a structured heatmap table: attack class x (tactic, technique, F1, detectable, SOC note).
-    Uses actual per-class F1 from metrics.json + tactic data from ATTACK_TACTIC.
-    """
+    """ATT&CK mapping heatmap with per-class F1 and flow detectability."""
     _style()
 
     # Best available model with per_class data
@@ -601,7 +563,7 @@ def plot_attck_mapping_table(full: dict, fdir: Path, alerts_path: Path) -> None:
 
     per_class = full[model_key].get("per_class", {})
 
-    # Technique IDs and SOC notes — aligned to your mitre_mapping.json
+    # Technique IDs and SOC notes
     TECHNIQUE_MAP = {
         "DoS Hulk":                ("T1498",     "Network DoS",             True,  "High volume — easy"),
         "DDoS":                    ("T1498",     "Network DoS",             True,  "Bandwidth signature"),
@@ -887,16 +849,16 @@ def main() -> None:
     # Figure 4: Per-class F1 (severity legend added)
     plot_per_class_f1(full, fdir)
 
-    # Figure 5 [NEW]: ROC curves
+    # Figure 5: ROC curves
     plot_roc_curves(full, fdir)
 
-    # Figure 6 [NEW]: PR curves minority classes
+    # Figure 6: PR curves minority classes
     plot_pr_curves(full, fdir)
 
-    # Figure 7 [NEW]: Cross-dataset delta
+    # Figure 7: Cross-dataset delta
     plot_crossdataset_delta(fdir, mpath)
 
-    # Figure 8 [NEW]: ATT&CK mapping heatmap table
+    # Figure 8: ATT&CK mapping heatmap table
     plot_attck_mapping_table(full, fdir, adir)
 
     # Markdown report

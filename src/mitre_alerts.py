@@ -14,27 +14,19 @@ MAPPING_PATH = Path(__file__).resolve().parent / "mitre_mapping.json"
 
 
 def _lookup(mapping: dict, attack_type: str) -> dict:
-    """
-    Look up attack_type in the MITRE mapping with multiple fallback strategies:
-    1. Exact match
-    2. Replace ' - ' with '-'  (e.g. 'Web Attack - XSS' -> 'Web Attack-XSS')
-    3. Replace ' – ' with '-'  (en-dash variant)
-    4. Case-insensitive exact match
-    5. Case-insensitive after normalising dashes
-    6. Fall back to _default
-    """
+    """Look up attack_type in MITRE mapping with fuzzy fallbacks."""
     at = str(attack_type).strip()
 
-    # Strategy 1: exact match
+    # Exact match
     if at in mapping:
         return {**mapping[at], "mapped_from": at}
 
-    # Strategy 2: normalise ' - ' -> '-'
+    # Normalise dashes
     norm = at.replace(" - ", "-").replace(" – ", "-")
     if norm in mapping:
         return {**mapping[norm], "mapped_from": norm}
 
-    # Strategy 3: case-insensitive scan
+    # Case-insensitive
     at_lower = at.lower()
     norm_lower = norm.lower()
     for k, v in mapping.items():
@@ -43,7 +35,7 @@ def _lookup(mapping: dict, attack_type: str) -> dict:
         if k.lower() == at_lower or k.lower() == norm_lower:
             return {**v, "mapped_from": k}
 
-    # Strategy 4: partial substring match (e.g. 'DoS attacks-Hulk' in key)
+    # Partial substring match
     for k, v in mapping.items():
         if k.startswith("_"):
             continue

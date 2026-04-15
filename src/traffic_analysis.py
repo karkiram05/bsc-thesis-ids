@@ -1,26 +1,4 @@
-"""
-traffic_analysis.py — Blue Team Network Traffic Analysis
-=========================================================
-Produces a security engineering report from CICIDS2017 flow data, written
-from the perspective of a SOC analyst / detection engineer.
-
-Outputs (all in reports/traffic_analysis/):
-  1. flow_statistics.md         — per-attack flow-level stats (what the network looks like)
-  2. detection_signatures.md    — human-readable detection rules per attack (Sigma-style logic)
-  3. mitre_tactic_profile.md    — ATT&CK tactic distribution + threat profile of the dataset
-  4. soc_triage_playbook.md     — SOC triage guide: what to do when the model fires an alert
-  5. feature_separability.md    — which flow features best separate each attack from benign
-  6. Figures:
-       tactic_distribution.png  — bar chart of flows per ATT&CK tactic
-       attack_volume.png        — attack class imbalance chart
-       feature_heatmap.png      — normalised mean feature values per attack (heatmap)
-       flow_duration_box.png    — flow duration distribution per attack type
-
-Run:
-    python -m src.traffic_analysis
-
-Requires: data/processed/cicids2017/all_clean.parquet (run prepare_data first)
-"""
+"""Blue team traffic analysis: per-attack flow stats, detection rules, MITRE mapping."""
 
 from __future__ import annotations
 
@@ -36,17 +14,10 @@ import pandas as pd
 
 from src.config import DATA_FILE, REPORTS_DIR, NON_FEATURE
 
-# ---------------------------------------------------------------------------
-# Output directory
-# ---------------------------------------------------------------------------
 OUT_DIR = REPORTS_DIR / "traffic_analysis"
 FIG_DIR = OUT_DIR / "figures"
 
-# ---------------------------------------------------------------------------
-# MITRE ATT&CK mapping — tactic, technique, detection notes
-# This is the blue team view: each attack mapped to adversary behaviour +
-# what a SOC analyst should look for in the flow data.
-# ---------------------------------------------------------------------------
+# MITRE ATT&CK mapping per attack type
 MITRE = {
     "Benign": {
         "tactic": None, "technique_id": None, "technique": None,
@@ -297,7 +268,7 @@ MITRE = {
     },
 }
 
-# Key flow features to analyse — chosen for security relevance
+# Key flow features for analysis
 KEY_FEATURES = [
     "Flow Duration",
     "Total Fwd Packets",
@@ -321,7 +292,7 @@ KEY_FEATURES = [
     "Init_Win_bytes_backward",
 ]
 
-# ATT&CK tactic colour coding (for plots)
+# Tactic colours for plots
 TACTIC_COLORS = {
     "Reconnaissance":      "#4e9af1",
     "Discovery":           "#52b788",
@@ -348,12 +319,12 @@ def _load_data() -> pd.DataFrame:
 
 
 def _available_features(df: pd.DataFrame, wanted: list[str]) -> list[str]:
-    """Return only features that exist in the dataframe."""
+    """Filter to features present in df."""
     return [f for f in wanted if f in df.columns]
 
 
 def _get_mitre(attack: str) -> dict:
-    """Look up MITRE entry for an attack type."""
+    """Look up MITRE entry with fuzzy fallback."""
     if attack in MITRE:
         return MITRE[attack]
     # fuzzy fallback
@@ -370,12 +341,10 @@ def _get_mitre(attack: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def section_flow_statistics(df: pd.DataFrame, feat: list[str]) -> str:
-    """Per-attack descriptive statistics on key flow features."""
+    """Per-attack flow-level stats."""
     lines = [
         "# 1. Flow-Level Traffic Statistics per Attack Type\n\n",
-        "These statistics describe what each attack *looks like* at the network flow level. ",
-        "Understanding these patterns is the foundation of detection engineering — ",
-        "before writing a detection rule, a blue teamer must understand the traffic signature.\n\n",
+        "Per-attack flow statistics — what each attack looks like at the network level.\n\n",
     ]
 
     attacks = sorted(df["attack_type"].unique())
@@ -426,19 +395,11 @@ def section_flow_statistics(df: pd.DataFrame, feat: list[str]) -> str:
 # ---------------------------------------------------------------------------
 
 def section_detection_signatures(df: pd.DataFrame, feat: list[str]) -> str:
-    """
-    Human-readable detection rules derived from flow statistics.
-    Written in the style of Sigma rules — what a SOC engineer would
-    implement in a SIEM or network detection tool.
-    """
+    """Sigma-style detection rules derived from flow statistics."""
     lines = [
         "# 2. Detection Signatures — Flow-Based Detection Logic\n\n",
-        "These detection conditions are derived from statistical analysis of the flow data. ",
-        "They represent the kind of rules a detection engineer would write in a SIEM ",
-        "(e.g. Splunk, Elastic SIEM) or a network IDS (e.g. Suricata, Zeek).\n\n",
-        "> **Note**: These are flow-level heuristics. Real deployment requires tuning ",
-        "thresholds to the specific network baseline. The ML model in this thesis ",
-        "automates this detection — the rules below explain *why* the model works.\n\n",
+        "Detection rules derived from flow statistics (Sigma-style). "
+        "Real deployment needs network-specific threshold tuning.\n\n",
     ]
 
     # Compute per-attack percentiles for threshold derivation
