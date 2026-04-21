@@ -10,7 +10,6 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import shap
 
 from src.config import (
     DATA_FILE, NON_FEATURE, REPORTS_DIR, MODELS_DIR, FIGURES_DIR,
@@ -97,6 +96,12 @@ def _render_table(ax, col_labels, row_data, title, col_widths=None,
 
 def shap_analysis():
     """SHAP plots for RF binary model (day split)."""
+    # shap is an optional heavy dep, keep import local so rest of module still runs without it
+    try:
+        import shap
+    except ImportError:
+        print("[SHAP] shap not installed, skipping. Run: pip install shap")
+        return
     print("[SHAP] Loading data and model...")
 
     df = pd.read_parquet(DATA_FILE)

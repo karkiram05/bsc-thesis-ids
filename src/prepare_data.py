@@ -173,7 +173,7 @@ def main() -> None:
     df.to_parquet(DATA_FILE, index=False)
     print(f"[save] {DATA_FILE}")
 
-    feat = [c for c in df.columns if c not in NON_FEATURE and c in df.columns]
+    feat = [c for c in df.columns if c not in NON_FEATURE]
     meta_lines = [
         "# Processed CICIDS2017\n\n",
         f"- raw files: {len(files)}\n",

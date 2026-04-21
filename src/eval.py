@@ -6,23 +6,10 @@ import joblib, numpy as np, pandas as pd
 from sklearn.metrics import (precision_recall_fscore_support, confusion_matrix,
     roc_auc_score, average_precision_score, classification_report,
     roc_curve, precision_recall_curve)
-from src.config import (
-    DATA_FILE, MODELS_DIR, NON_FEATURE, METRICS_DIR,
-    feature_cols, uses_internal_scaler,
-)
+from src.config import DATA_FILE, MODELS_DIR, METRICS_DIR
 
 # classes with fewer test rows than this get per-class PR curves
 MINORITY_THRESHOLD = 500
-
-
-def _is_tree_model(model):
-    """Check if model is tree-based (no scaling needed)."""
-    base = model
-    if hasattr(model, "steps"):
-        for _, step in model.steps:
-            base = step
-    cls_name = type(base).__name__.lower()
-    return any(t in cls_name for t in ["forest", "xgb", "lgb", "tree", "gradient"])
 
 
 def auc_from_arrays(fpr, tpr):
@@ -57,12 +44,10 @@ def main():
         raise SystemExit(f"Split mismatch: trained={meta.get('split_col')}, eval={split_col}")
 
     le     = joblib.load(models_dir / "label_encoder.joblib")
-    scaler = joblib.load(models_dir / "scaler.joblib")
 
     sub   = df.loc[df[split_col] == "test"]
     y_raw = sub["attack_type"].astype(str)
     X     = sub[feat].copy()
-    X_s   = scaler.transform(X)
 
     known_classes = list(le.classes_)
     known_to_idx = {c: i for i, c in enumerate(known_classes)}
@@ -104,13 +89,9 @@ def main():
         print(f"[eval] evaluating {key} ...")
         model    = joblib.load(path)
 
-        # Pick raw or scaled features depending on model type
-        if uses_internal_scaler(model):
-            X_in = X
-        elif _is_tree_model(model):
-            X_in = X
-        else:
-            X_in = X_s
+        # All 4 trained models skip the external scaler:
+        # LogReg pipeline has its own scaler, trees are scale-invariant.
+        X_in = X
 
         raw_pred = model.predict(X_in)
         raw_proba = model.predict_proba(X_in) if hasattr(model, "predict_proba") else None

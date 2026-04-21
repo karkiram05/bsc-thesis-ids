@@ -107,7 +107,6 @@ def main():
         # XGBoost needs contiguous 0..N-1 labels; remap for day split
         train_classes = sorted(set(yt.tolist()))
         remap = {c: i for i, c in enumerate(train_classes)}
-        reverse_remap = {i: c for c, i in remap.items()}
         yt_xgb = np.array([remap[v] for v in yt.tolist()], dtype=np.int32)
         xgb_clf = xgb.XGBClassifier(n_estimators=200, max_depth=8, learning_rate=0.1,
             eval_metric="mlogloss", random_state=RNG, n_jobs=-1, verbosity=0)

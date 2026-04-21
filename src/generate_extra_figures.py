@@ -40,6 +40,10 @@ def fig_lodo_folds():
             vals = []
             for day in days:
                 row = df[(df["model"] == model) & (df["held_out_day"] == day)]
+                # guard: --baseline-only pipelines skip xgb/lgbm, so row can be empty
+                if len(row) == 0:
+                    vals.append(0)
+                    continue
                 v = row[metric].values[0]
                 vals.append(v if v is not None and not pd.isna(v) else 0)
             bars = ax.bar(x + i * width, vals, width, label=label, color=colors[i], alpha=0.85)

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
-
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -20,9 +18,6 @@ from src.config import (
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Prepare UNSW-NB15: clean, encode, split.")
-    p.parse_args()
-
     if not UNSW_RAW_DIR.exists():
         raise SystemExit(f"Missing raw dir: {UNSW_RAW_DIR}. Place UNSW-NB15 CSV files there.")
 
