@@ -28,7 +28,6 @@ from src.config import (
     SPLIT_COL_DAY,
     SPLIT_COL_STRAT,
     feature_cols,
-    uses_internal_scaler,
 )
 
 

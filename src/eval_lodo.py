@@ -100,8 +100,7 @@ def main() -> None:
         y_test = binary_y(test_df)
 
         # Use last training day as val for threshold tuning
-        day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-        train_days_ordered = [d for d in day_order if d in train_days]
+        train_days_ordered = [d for d in DAYS if d in train_days]
         inner_val_day = train_days_ordered[-1]
         inner_train_days = [d for d in train_days if d != inner_val_day]
 

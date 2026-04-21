@@ -36,6 +36,19 @@ def _train_eval_multiclass(Xt, yt, Xs, ys, n_classes):
     import xgboost as xgb
     import lightgbm as lgb
 
+    # drop rows where the encode() helper marked labels as unseen (-1), otherwise
+    # every prediction for those rows is counted as a false positive for the
+    # predicted class and precision is silently deflated.
+    keep = ys != -1
+    if (~keep).any():
+        print(f"[val-exp] dropping {int((~keep).sum())} test rows with unseen labels")
+        Xs = Xs.loc[keep] if hasattr(Xs, "loc") else Xs[keep]
+        ys = ys[keep]
+    keep_t = yt != -1
+    if (~keep_t).any():
+        Xt = Xt.loc[keep_t] if hasattr(Xt, "loc") else Xt[keep_t]
+        yt = yt[keep_t]
+
     models = {
         "logreg": Pipeline([
             ("scaler", StandardScaler()),

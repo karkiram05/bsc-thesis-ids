@@ -144,7 +144,9 @@ def main():
         }
 
         # ── ROC AUC + ROC curve data ─────────────────────────────────────
-        if proba is not None and n_classes > 2:
+        # include n_classes == 2 too: when unseen-class filtering leaves only
+        # benign + one attack, we still want an AUC in the JSON.
+        if proba is not None and n_classes >= 2:
             # ROC-AUC only on classes with support in test
             classes_with_support = [i for i in range(n_classes) if sup[i] > 0]
 
@@ -202,6 +204,11 @@ def main():
             # Per-class ROC curve data (downsampled for JSON size)
             roc_data = {}
             for i, cls in enumerate(class_names):
+                # __unseen__ column is zero-padded (no training signal), ROC
+                # would be a degenerate single point — skip to avoid misleading
+                # figures downstream.
+                if cls == "__unseen__":
+                    continue
                 y_bin = (y == i).astype(int)
                 if y_bin.sum() == 0:
                     continue
@@ -222,6 +229,8 @@ def main():
             # PR curves for minority classes only
             pr_data = {}
             for i, cls in enumerate(class_names):
+                if cls == "__unseen__":
+                    continue
                 n_test = int((y == i).sum())
                 if n_test == 0 or n_test >= MINORITY_THRESHOLD:
                     continue

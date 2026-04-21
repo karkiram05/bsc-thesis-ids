@@ -117,9 +117,10 @@ def shap_analysis():
     rf = joblib.load(rf_path)
 
     # Sample for SHAP (full test set too large)
-    np.random.seed(42)
+    from src.config import RNG
+    rng = np.random.default_rng(RNG)
     n_sample = 2000
-    idx = np.random.choice(len(X_test), size=min(n_sample, len(X_test)), replace=False)
+    idx = rng.choice(len(X_test), size=min(n_sample, len(X_test)), replace=False)
     X_sample = X_test.iloc[idx]
     y_sample = y_test[idx]
 
@@ -307,37 +308,33 @@ def mcnemar_test():
 def fig_mcnemar(mcnemar_rows: list[dict] | None = None):
     """McNemar's test results as styled PNG table."""
 
-    if mcnemar_rows:
-        # Sort: RF comparisons first
-        def _sort_key(r):
-            if r["a"] == "random_forest":
-                return (0, r["b"])
-            if r["b"] == "random_forest":
-                return (0, r["a"])
-            return (1, r["a"], r["b"])
-        mcnemar_rows = sorted(mcnemar_rows, key=_sort_key)
+    if not mcnemar_rows:
+        # no live rows means mcnemar_test() had no models to compare;
+        # skip instead of baking stale numbers into the defense figure.
+        print("  [skip] fig_mcnemar: no mcnemar rows, run binary-day training first")
+        return
 
-        row_data = []
-        for r in mcnemar_rows:
-            name_map = {"random_forest": "Random Forest", "xgboost": "XGBoost",
-                        "lightgbm": "LightGBM", "logreg": "LogReg"}
-            row_data.append([
-                name_map.get(r["a"], r["a"]),
-                name_map.get(r["b"], r["b"]),
-                f"{r['f1_a']:.3f}", f"{r['f1_b']:.3f}",
-                f"{r['b_val']:,}", f"{r['c_val']:,}",
-                f"{r['chi2']:,.0f}", "<0.0001" if r["p_val"] < 0.0001 else f"{r['p_val']:.4f}",
-                r["sig"],
-            ])
-    else:
-        row_data = [
-            ["Random Forest", "XGBoost",  "0.859", "0.757", "13,980", "31,299", "6,624", "<0.0001", "YES"],
-            ["Random Forest", "LightGBM", "0.859", "0.744", "15,392", "34,778", "7,490", "<0.0001", "YES"],
-            ["Random Forest", "LogReg",   "0.859", "0.681", "27,656", "112,502", "51,361", "<0.0001", "YES"],
-            ["XGBoost",       "LightGBM", "0.757", "0.744", "3,066", "5,133", "521", "<0.0001", "YES"],
-            ["XGBoost",       "LogReg",   "0.757", "0.681", "46,703", "114,230", "28,333", "<0.0001", "YES"],
-            ["LightGBM",      "LogReg",   "0.744", "0.681", "49,457", "114,917", "26,068", "<0.0001", "YES"],
-        ]
+    # Sort: RF comparisons first
+    def _sort_key(r):
+        if r["a"] == "random_forest":
+            return (0, r["b"])
+        if r["b"] == "random_forest":
+            return (0, r["a"])
+        return (1, r["a"], r["b"])
+    mcnemar_rows = sorted(mcnemar_rows, key=_sort_key)
+
+    row_data = []
+    for r in mcnemar_rows:
+        name_map = {"random_forest": "Random Forest", "xgboost": "XGBoost",
+                    "lightgbm": "LightGBM", "logreg": "LogReg"}
+        row_data.append([
+            name_map.get(r["a"], r["a"]),
+            name_map.get(r["b"], r["b"]),
+            f"{r['f1_a']:.3f}", f"{r['f1_b']:.3f}",
+            f"{r['b_val']:,}", f"{r['c_val']:,}",
+            f"{r['chi2']:,.0f}", "<0.0001" if r["p_val"] < 0.0001 else f"{r['p_val']:.4f}",
+            r["sig"],
+        ])
 
     col_labels = ["Model A", "Model B", "F1 (A)", "F1 (B)", "A wrong\nB right",
                   "A right\nB wrong", "chi2", "p-value", "Sig.?"]
