@@ -14,8 +14,6 @@ import matplotlib.pyplot as plt
 from src.config import DATA_FILE, NON_FEATURE, MODELS_DIR, REPORTS_DIR, FIGURES_DIR
 
 OUT = REPORTS_DIR / "benchmark"
-OUT.mkdir(parents=True, exist_ok=True)
-FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 WARMUP = 2
 ROUNDS = 5
@@ -68,6 +66,8 @@ def benchmark_model(name: str, model_path: Path, X_test: pd.DataFrame) -> dict:
 
 
 def main():
+    OUT.mkdir(parents=True, exist_ok=True)
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     print("[benchmark] loading test data ...")
     X_test = _load_test_data()
     print(f"[benchmark] test shape={X_test.shape}")

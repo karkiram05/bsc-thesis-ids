@@ -25,8 +25,6 @@ from src.config import (
 warnings.filterwarnings("ignore")
 
 OUT = REPORTS_DIR / "anomaly"
-OUT.mkdir(parents=True, exist_ok=True)
-FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 # LOF with novelty=True stores the training set, so keep it small
 LOF_TRAIN_SAMPLE = 30_000
@@ -87,6 +85,8 @@ def _supervised_baseline() -> dict:
 
 
 def main():
+    OUT.mkdir(parents=True, exist_ok=True)
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     print("[anomaly] loading data ...")
     X_train, X_test, y_test, feat = _load_day_split()
     print(f"[anomaly] benign train n={len(X_train):,}  test n={len(y_test):,}  "
@@ -184,9 +184,11 @@ def main():
         for name, r in supervised.items():
             roc = r.get("roc_auc")
             pr = r.get("pr_auc")
+            # supervised json may have None if a model failed; keep row but show dash
+            roc_s = f"{roc:.4f}" if roc is not None else "—"
+            pr_s = f"{pr:.4f}" if pr is not None else "—"
             lines.append(
-                f"| {name} | supervised | "
-                f"{roc:.4f} | {pr:.4f} | — | — |"
+                f"| {name} | supervised | {roc_s} | {pr_s} | — | — |"
             )
 
     lines += [
@@ -211,7 +213,8 @@ def main():
     # Figure: ROC-AUC bar chart, unsupervised vs supervised
     fig, ax = plt.subplots(figsize=(10, 5))
     unsup_names = list(results.keys())
-    sup_names = list(supervised.keys())
+    # drop supervised entries with missing roc so matplotlib does not choke on None
+    sup_names = [n for n in supervised if supervised[n].get("roc_auc") is not None]
     all_names = unsup_names + sup_names
     all_vals = [results[n]["roc_auc"] for n in unsup_names] + \
                [supervised[n]["roc_auc"] for n in sup_names]

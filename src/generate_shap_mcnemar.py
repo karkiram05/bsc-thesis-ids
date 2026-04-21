@@ -17,7 +17,6 @@ from src.config import (
 )
 
 FIG_DIR = FIGURES_DIR
-FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _render_table(ax, col_labels, row_data, title, col_widths=None,
@@ -464,6 +463,7 @@ def fig_hyperparameters():
 
 
 def main():
+    FIG_DIR.mkdir(parents=True, exist_ok=True)
     print("[generate_shap_mcnemar] starting...\n")
 
     shap_analysis()

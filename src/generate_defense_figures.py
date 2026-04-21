@@ -16,7 +16,6 @@ from src.config import REPORTS_DIR, FIGURES_DIR
 
 REPORTS = REPORTS_DIR
 FIG_DIR = FIGURES_DIR
-FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def fig_day_attack_distribution():
@@ -334,6 +333,7 @@ def fig_class_imbalance():
 
 
 def main():
+    FIG_DIR.mkdir(parents=True, exist_ok=True)
     print("[defense figures] generating...")
     fig_day_attack_distribution()
     fig_binary_vs_multiclass()

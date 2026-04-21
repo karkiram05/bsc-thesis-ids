@@ -17,7 +17,6 @@ from src.config import DATA_FILE, NON_FEATURE, MODELS_DIR, REPORTS_DIR, FIGURES_
 warnings.filterwarnings("ignore")
 
 OUT = REPORTS_DIR / "operating_points"
-OUT.mkdir(parents=True, exist_ok=True)
 
 FPR_TARGETS = [0.0001, 0.001, 0.01]   # 0.01%, 0.1%, 1%
 ECE_BINS = 15
@@ -59,6 +58,7 @@ def _load_binary_test():
 
 
 def main():
+    OUT.mkdir(parents=True, exist_ok=True)
     print("[ops] loading data ...")
     X_test, y_test = _load_binary_test()
     print(f"[ops] test n={len(y_test):,}  attack rate={y_test.mean():.4f}")

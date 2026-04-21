@@ -15,6 +15,8 @@ MINORITY_THRESHOLD = 500
 def auc_from_arrays(fpr, tpr):
     """Trapezoid AUC from FPR/TPR arrays."""
     _trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz", None)
+    if _trapz is None:
+        raise RuntimeError("numpy has neither trapezoid nor trapz — upgrade numpy")
     return float(_trapz(tpr, fpr))
 
 
@@ -193,7 +195,8 @@ def main():
                         ap_scores.append(
                             average_precision_score((y == i).astype(int), proba[:, i]))
                 rec["pr_auc_macro"] = float(np.mean(ap_scores)) if ap_scores else None
-            except Exception:
+            except Exception as e:
+                print(f"[warn] PR-AUC macro failed for {key}: {e}")
                 rec["pr_auc_macro"] = None
 
             # Per-class ROC curve data (downsampled for JSON size)

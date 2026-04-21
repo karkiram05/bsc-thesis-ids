@@ -158,8 +158,6 @@ def main() -> None:
         _, _, best_val_f1, _ = precision_recall_fscore_support(
             yv, pred_youden, average="binary", zero_division=0)
 
-        fpr_thr = thr_youden
-
         print(f"[{key}] threshold={best_thr:.6f} via {thr_source} "
               f"(Best-F1 thr={thr_bestf1:.4f}, Youden thr={thr_youden:.6f}, "
               f"valF1={best_val_f1:.4f})")
@@ -218,7 +216,6 @@ def main() -> None:
             "pr_auc": round(pr_auc, 4),
             "brier_score": round(brier, 4),
             "best_threshold_from_val": round(best_thr, 6),
-            "fpr_constrained_threshold": round(fpr_thr, 6),
             "precision_at_threshold": round(float(p), 4),
             "recall_at_threshold": round(float(r), 4),
             "f1_at_threshold": round(float(f1), 4),

@@ -17,7 +17,6 @@ from src.config import DATA_FILE, NON_FEATURE, MODELS_DIR, REPORTS_DIR
 warnings.filterwarnings("ignore")
 
 OUT = REPORTS_DIR / "bootstrap"
-OUT.mkdir(parents=True, exist_ok=True)
 
 B = 1000
 SEED = 42
@@ -51,11 +50,17 @@ def _load_binary_test() -> tuple[pd.DataFrame, np.ndarray]:
 
 def _load_threshold(model_name: str) -> float:
     # use the same Youden-J threshold as the main binary eval
-    metrics = json.loads((REPORTS_DIR / "metrics_day_binary" / "binary_metrics.json").read_text())
+    path = REPORTS_DIR / "metrics_day_binary" / "binary_metrics.json"
+    if not path.exists():
+        raise SystemExit(f"Missing {path}. Run: make binary-day first.")
+    metrics = json.loads(path.read_text())
+    if model_name not in metrics:
+        raise SystemExit(f"Model '{model_name}' not found in {path}. Available: {list(metrics)}")
     return float(metrics[model_name]["best_threshold_from_val"])
 
 
 def main():
+    OUT.mkdir(parents=True, exist_ok=True)
     print("[bootstrap] loading data ...")
     X_test, y_test = _load_binary_test()
     print(f"[bootstrap] test shape={X_test.shape}  attack rate={y_test.mean():.4f}")

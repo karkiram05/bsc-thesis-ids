@@ -41,10 +41,10 @@ def main() -> None:
     df_test.columns = [c.strip() for c in df_test.columns]
 
     # Clean attack_cat: strip whitespace, normalise empty/NaN to "Normal"
-    for df in [df_train, df_test]:
-        df["attack_cat"] = df["attack_cat"].fillna("Normal").astype(str).str.strip()
-        df.loc[df["attack_cat"] == "", "attack_cat"] = "Normal"
-        df["attack_cat"] = df["attack_cat"].str.strip()
+    for sub in (df_train, df_test):
+        sub["attack_cat"] = sub["attack_cat"].fillna("Normal").astype(str).str.strip()
+        sub.loc[sub["attack_cat"] == "", "attack_cat"] = "Normal"
+        sub["attack_cat"] = sub["attack_cat"].str.strip()
 
     # Show label distribution
     print("[labels] training-set:")

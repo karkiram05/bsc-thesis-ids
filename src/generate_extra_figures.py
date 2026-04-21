@@ -15,7 +15,6 @@ from src.config import REPORTS_DIR, FIGURES_DIR
 
 REPORTS = REPORTS_DIR
 FIG_DIR = FIGURES_DIR
-FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def fig_lodo_folds():
@@ -279,6 +278,7 @@ def fig_feature_overlap():
 
 
 def main():
+    FIG_DIR.mkdir(parents=True, exist_ok=True)
     print("[extra figures] generating...")
     fig_lodo_folds()
     fig_calibration()
