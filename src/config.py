@@ -1,16 +1,18 @@
-"""Shared config: paths, leakage columns, split and model defaults."""
+"""Shared config: paths, leakage columns, split and model defaults, plus a few small helpers."""
 from __future__ import annotations
 from pathlib import Path
+from typing import Iterable
+
+import numpy as np
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# ── CICIDS2017 ────────────────────────────────────────────────────────
 RAW_DIR = ROOT / "data" / "raw" / "cicids2017"
 PROCESSED_DIR = ROOT / "data" / "processed" / "cicids2017"
 DATA_FILE = PROCESSED_DIR / "all_clean.parquet"
 META_FILE = PROCESSED_DIR / "meta.md"
 
-# ── UNSW-NB15 ─────────────────────────────────────────────────────────
 UNSW_RAW_DIR = ROOT / "data" / "unsw-nb15" / "raw"
 UNSW_PROCESSED_DIR = ROOT / "data" / "processed" / "unsw-nb15"
 UNSW_DATA_FILE = UNSW_PROCESSED_DIR / "all_clean.parquet"
@@ -74,3 +76,27 @@ UNSW_METRICS_DIR = ROOT / "reports" / "metrics_unsw"
 SPLIT_COL_DAY = "split_day"
 SPLIT_COL_STRAT = "split_strat"
 DEFAULT_SPLIT_COL = SPLIT_COL_DAY
+
+
+def feature_cols(df: pd.DataFrame, non_feature: Iterable[str] = NON_FEATURE) -> list[str]:
+    return [c for c in df.columns if c not in non_feature]
+
+
+def uses_internal_scaler(model) -> bool:
+    # true when the model is a sklearn Pipeline that already has a "scaler" step
+    return hasattr(model, "steps") and "scaler" in [s[0] for s in model.steps]
+
+
+def safe_transform(le, labels: pd.Series) -> np.ndarray:
+    # map unseen labels to -1 so callers can drop them (avoid LabelEncoder crash)
+    vals = labels.astype(str)
+    known = set(le.classes_.tolist())
+    y = np.full(len(vals), -1, dtype=np.int64)
+    mask = vals.isin(known)
+    if mask.any():
+        y[mask.values] = le.transform(vals[mask])
+    return y
+
+
+def binary_y(df: pd.DataFrame) -> np.ndarray:
+    return (df["attack_type"].astype(str) != "Benign").astype(int).to_numpy()

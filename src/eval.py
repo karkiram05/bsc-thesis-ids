@@ -6,18 +6,13 @@ import joblib, numpy as np, pandas as pd
 from sklearn.metrics import (precision_recall_fscore_support, confusion_matrix,
     roc_auc_score, average_precision_score, classification_report,
     roc_curve, precision_recall_curve)
-from src.config import DATA_FILE, MODELS_DIR, NON_FEATURE, METRICS_DIR
+from src.config import (
+    DATA_FILE, MODELS_DIR, NON_FEATURE, METRICS_DIR,
+    feature_cols, uses_internal_scaler,
+)
 
-# Minority class threshold: classes with fewer test rows than this get PR curves
+# classes with fewer test rows than this get per-class PR curves
 MINORITY_THRESHOLD = 500
-
-
-def _feature_cols(df):
-    return [c for c in df.columns if c not in NON_FEATURE]
-
-
-def _uses_internal_scaler(model):
-    return hasattr(model, "steps") and "scaler" in [s[0] for s in model.steps]
 
 
 def _is_tree_model(model):
@@ -110,7 +105,7 @@ def main():
         model    = joblib.load(path)
 
         # Pick raw or scaled features depending on model type
-        if _uses_internal_scaler(model):
+        if uses_internal_scaler(model):
             X_in = X
         elif _is_tree_model(model):
             X_in = X

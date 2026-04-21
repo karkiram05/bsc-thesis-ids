@@ -305,9 +305,7 @@ TACTIC_COLORS = {
 }
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 def _load_data() -> pd.DataFrame:
     if not DATA_FILE.exists():
@@ -336,9 +334,7 @@ def _get_mitre(attack: str) -> dict:
             "kill_chain": "—", "soc_action": "Review manually.", "detection_note": "—"}
 
 
-# ---------------------------------------------------------------------------
 # Section 1: Flow statistics per attack type
-# ---------------------------------------------------------------------------
 
 def section_flow_statistics(df: pd.DataFrame, feat: list[str]) -> str:
     """Per-attack flow-level stats."""
@@ -390,9 +386,7 @@ def section_flow_statistics(df: pd.DataFrame, feat: list[str]) -> str:
     return "".join(lines)
 
 
-# ---------------------------------------------------------------------------
 # Section 2: Detection signatures (Sigma-style logic)
-# ---------------------------------------------------------------------------
 
 def section_detection_signatures(df: pd.DataFrame, feat: list[str]) -> str:
     """Sigma-style detection rules derived from flow statistics."""
@@ -601,9 +595,7 @@ def section_detection_signatures(df: pd.DataFrame, feat: list[str]) -> str:
     return "".join(lines)
 
 
-# ---------------------------------------------------------------------------
 # Section 3: MITRE ATT&CK tactic profile
-# ---------------------------------------------------------------------------
 
 def section_mitre_tactic_profile(df: pd.DataFrame) -> str:
     """ATT&CK tactic distribution and threat profile of the dataset."""
@@ -678,9 +670,7 @@ def section_mitre_tactic_profile(df: pd.DataFrame) -> str:
     return "".join(lines)
 
 
-# ---------------------------------------------------------------------------
 # Section 4: SOC triage playbook
-# ---------------------------------------------------------------------------
 
 def section_soc_triage_playbook(df: pd.DataFrame) -> str:
     """
@@ -749,9 +739,7 @@ def section_soc_triage_playbook(df: pd.DataFrame) -> str:
     return "".join(lines)
 
 
-# ---------------------------------------------------------------------------
 # Section 5: Feature separability (what makes each attack detectable)
-# ---------------------------------------------------------------------------
 
 def section_feature_separability(df: pd.DataFrame, feat: list[str]) -> str:
     """
@@ -812,9 +800,7 @@ def section_feature_separability(df: pd.DataFrame, feat: list[str]) -> str:
     return "".join(lines)
 
 
-# ---------------------------------------------------------------------------
 # Figures
-# ---------------------------------------------------------------------------
 
 def plot_tactic_distribution(df: pd.DataFrame) -> None:
     """Bar chart: flow count per ATT&CK tactic."""
@@ -965,9 +951,7 @@ def plot_flow_duration(df: pd.DataFrame) -> None:
     print("[traffic_analysis] saved flow_duration_box.png")
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)

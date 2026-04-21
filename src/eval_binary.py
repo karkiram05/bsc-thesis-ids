@@ -27,15 +27,13 @@ from src.config import (
     NON_FEATURE,
     SPLIT_COL_DAY,
     SPLIT_COL_STRAT,
+    feature_cols,
+    uses_internal_scaler,
 )
 
 
-def _feature_cols(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if c not in NON_FEATURE]
-
-
 def _load_binary_splits(df: pd.DataFrame, split_col: str):
-    feat = _feature_cols(df)
+    feat = feature_cols(df)
 
     def part(s: str):
         sub = df.loc[df[split_col] == s]
@@ -50,9 +48,9 @@ def _load_binary_splits(df: pd.DataFrame, split_col: str):
 
 
 def _threshold_table(y_true, y_prob, thresholds=None):
-    """Sweep thresholds, return precision/recall/F1/FPR per threshold."""
+    """Sweep thresholds and collect precision/recall/F1/FPR."""
     if thresholds is None:
-        thresholds = np.arange(0.01, 0.96, 0.01)  # Fine grid (0.01 steps)
+        thresholds = np.arange(0.01, 0.96, 0.01)
     rows = []
     n_neg = (y_true == 0).sum()
     for t in thresholds:
@@ -68,12 +66,8 @@ def _threshold_table(y_true, y_prob, thresholds=None):
     return pd.DataFrame(rows)
 
 
-def _uses_internal_scaler(model):
-    return hasattr(model, "steps") and "scaler" in [s[0] for s in model.steps]
-
-
 def _resolve_models_dir(models_dir: Path, split: str) -> Path:
-    """Find binary model dir (tries direct path, then nested binary_<split>/)."""
+    """Try the path directly, then its nested binary_<split>/ subdir."""
     direct_dir = Path(models_dir)
     nested_dir = direct_dir / f"binary_{split}"
 
@@ -120,9 +114,8 @@ def main() -> None:
         raise SystemExit(f"Missing {scaler_path}. Re-run src.train_binary.")
     scaler = joblib.load(scaler_path)
 
-    # Load trained binary models
     models: dict[str, tuple[object, pd.DataFrame | np.ndarray, pd.DataFrame | np.ndarray]] = {}
-    for key in ["logreg", "random_forest", "xgboost", "lightgbm", "xgboost_calibrated"]:
+    for key in ["logreg", "random_forest", "xgboost", "lightgbm"]:
         p = bin_models_dir / f"{key}.joblib"
         if not p.exists():
             continue
@@ -135,17 +128,14 @@ def main() -> None:
             "Run src.train_binary before src.eval_binary."
         )
 
-    # --- Evaluate ---
     all_results = {}
 
     for key, (model, X_val, X_test) in models.items():
         proba = model.predict_proba(X_test)[:, 1]
 
-        # Threshold from val using Youden's J (prevalence-invariant).
-        # Also compute Best-F1 from PR curve for comparison.
+        # main threshold comes from Youden's J on val, Best-F1 is kept only for reference
         proba_val = model.predict_proba(X_val)[:, 1]
 
-        # Best-F1 from PR curve (for comparison only)
         prec_val, rec_val, thr_pr = precision_recall_curve(yv, proba_val)
         with np.errstate(divide="ignore", invalid="ignore"):
             f1_pr = np.where(
@@ -156,7 +146,6 @@ def main() -> None:
         best_pr_idx = int(np.argmax(f1_pr))
         thr_bestf1 = float(thr_pr[best_pr_idx])
 
-        # Youden's J (maximize TPR - FPR on val)
         fpr_val, tpr_val, thr_roc = roc_curve(yv, proba_val)
         j_scores = tpr_val[:-1] - fpr_val[:-1]
         best_j_idx = int(np.argmax(j_scores))
@@ -165,23 +154,20 @@ def main() -> None:
         best_thr = thr_youden
         thr_source = "Youden's J"
 
-        # Val F1 at Youden threshold
         pred_youden = (proba_val >= thr_youden).astype(int)
         _, _, best_val_f1, _ = precision_recall_fscore_support(
             yv, pred_youden, average="binary", zero_division=0)
 
-        fpr_thr = thr_youden  # report the Youden threshold as FPR point
+        fpr_thr = thr_youden
 
         print(f"[{key}] threshold={best_thr:.6f} via {thr_source} "
               f"(Best-F1 thr={thr_bestf1:.4f}, Youden thr={thr_youden:.6f}, "
               f"valF1={best_val_f1:.4f})")
 
-        # Threshold table for reporting
         thr_table_val = _threshold_table(yv, proba_val)
 
         pred = (proba >= best_thr).astype(int)
 
-        # Core metrics
         roc_auc = float(roc_auc_score(ys, proba))
         pr_auc = float(average_precision_score(ys, proba))
         brier = float(brier_score_loss(ys, proba))
@@ -192,38 +178,32 @@ def main() -> None:
         fp = ((pred == 1) & (ys == 0)).sum()
         fpr_at_thr = float(fp / n_neg) if n_neg > 0 else 0.0
 
-        # ROC curve data
         fpr_arr, tpr_arr, roc_thr = roc_curve(ys, proba)
         pd.DataFrame({
             "fpr": fpr_arr, "tpr": tpr_arr, "threshold": roc_thr
         }).to_csv(out / f"binary_roc_curve_{key}.csv", index=False)
 
-        # PR curve data
         prec_arr, rec_arr, pr_thr = precision_recall_curve(ys, proba)
         pd.DataFrame({
             "precision": prec_arr, "recall": rec_arr,
             "threshold": np.append(pr_thr, np.nan)
         }).to_csv(out / f"binary_pr_curve_{key}.csv", index=False)
 
-        # Threshold table on test
         thr_table_test = _threshold_table(ys, proba)
         thr_table_test.to_csv(out / f"binary_threshold_table_{key}.csv", index=False)
 
-        # Classification report
         report_txt = classification_report(
             ys, pred, target_names=["Benign", "Attack"],
             digits=4, zero_division=0
         )
         (out / f"binary_classification_report_{key}.txt").write_text(report_txt)
 
-        # Confusion matrix
         cm = confusion_matrix(ys, pred)
         pd.DataFrame(
             cm, index=["Benign", "Attack"], columns=["Pred_Benign", "Pred_Attack"]
         ).to_csv(out / f"binary_confusion_matrix_{key}.csv")
 
-        # Calibration curve
-        if key in ("xgboost", "lightgbm", "xgboost_calibrated", "random_forest"):
+        if key in ("xgboost", "lightgbm", "random_forest"):
             try:
                 frac_pos, mean_pred = calibration_curve(ys, proba, n_bins=10)
                 pd.DataFrame({

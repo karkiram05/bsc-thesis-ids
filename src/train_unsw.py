@@ -19,11 +19,9 @@ from src.config import (
     UNSW_MODELS_DIR,
     UNSW_NON_FEATURE,
     RNG,
+    feature_cols,
+    safe_transform,
 )
-
-
-def _feature_cols(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if c not in UNSW_NON_FEATURE]
 
 
 def main() -> None:
@@ -43,7 +41,7 @@ def main() -> None:
         raise SystemExit(f"Missing {UNSW_DATA_FILE}. Run: python -m src.prepare_unsw")
 
     df = pd.read_parquet(UNSW_DATA_FILE)
-    feat = _feature_cols(df)
+    feat = feature_cols(df, UNSW_NON_FEATURE)
 
     for s in ["train", "val", "test"]:
         if (df["split"] == s).sum() == 0:
@@ -70,19 +68,26 @@ def main() -> None:
         le = LabelEncoder()
         le.fit(train_sub["attack_cat"])
         yt = le.transform(train_sub["attack_cat"])
-        yv = le.transform(val_sub["attack_cat"])
-        ys = le.transform(test_sub["attack_cat"])
+        yv = safe_transform(le, val_sub["attack_cat"])
+        ys = safe_transform(le, test_sub["attack_cat"])
+        for split_name, y_arr in (("val", yv), ("test", ys)):
+            n_unseen = int((y_arr == -1).sum())
+            if n_unseen:
+                print(f"[warn] {split_name}: {n_unseen} rows have unseen attack_cat, dropping them.")
+        keep_v = yv != -1
+        keep_s = ys != -1
+        Xv, yv = Xv.loc[keep_v], yv[keep_v]
+        Xs, ys = Xs.loc[keep_s], ys[keep_s]
         class_names = list(le.classes_)
         print(f"[load] Multi-class: train={len(yt)} val={len(yv)} test={len(ys)} "
               f"features={len(feat)} classes={len(class_names)}")
 
-    # Scaler (only LogReg needs it)
+    # only LogReg actually uses this, but we still save it for reference
     scaler = StandardScaler()
     scaler.fit(Xt)
 
     models: list[tuple[str, object]] = []
 
-    # LogReg
     print("[train] LogReg ...")
     lr = Pipeline([
         ("scaler", StandardScaler()),
@@ -95,7 +100,6 @@ def main() -> None:
     models.append(("logreg", lr))
     print("[train] LogReg done.")
 
-    # RandomForest
     print("[train] RandomForest ...")
     rf = RandomForestClassifier(
         n_estimators=200, max_depth=24, max_features="sqrt",
@@ -105,7 +109,6 @@ def main() -> None:
     models.append(("random_forest", rf))
     print("[train] RandomForest done.")
 
-    # XGBoost
     if not args.baseline_only:
         import xgboost as xgb
         print("[train] XGBoost ...")
@@ -133,7 +136,6 @@ def main() -> None:
         models.append(("xgboost", xgb_clf))
         print("[train] XGBoost done.")
 
-        # LightGBM
         import lightgbm as lgb
         print("[train] LightGBM ...")
         lgb_params = {
@@ -155,7 +157,6 @@ def main() -> None:
         models.append(("lightgbm", lgb_clf))
         print("[train] LightGBM done.")
 
-    # Save artifacts
     joblib.dump(scaler, out / "scaler.joblib")
     if le is not None:
         joblib.dump(le, out / "label_encoder.joblib")

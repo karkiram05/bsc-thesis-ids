@@ -14,11 +14,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from src.config import DATA_FILE, MODELS_DIR, NON_FEATURE, RNG, SPLIT_COL_DAY, SPLIT_COL_STRAT
-
-
-def _feature_cols(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if c not in NON_FEATURE and c in df.columns]
+from src.config import (
+    DATA_FILE, MODELS_DIR, NON_FEATURE, RNG,
+    SPLIT_COL_DAY, SPLIT_COL_STRAT, feature_cols,
+)
 
 
 def _make_binary_y(attack_type: pd.Series) -> np.ndarray:
@@ -56,7 +55,7 @@ def main() -> None:
         df = pd.concat(parts, ignore_index=True)
         print(f"[sample] {args.sample} per split -> {len(df)} rows")
 
-    feat = _feature_cols(df)
+    feat = feature_cols(df)
     assert feat, "No feature columns found"
 
     def part(s: str):

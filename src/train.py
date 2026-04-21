@@ -15,23 +15,13 @@ from src.config import (
     RNG,
     SPLIT_COL_DAY,
     SPLIT_COL_STRAT,
+    feature_cols,
+    safe_transform,
 )
-
-def _feature_cols(df):
-    return [c for c in df.columns if c not in NON_FEATURE]
-
-def _safe_transform(le: LabelEncoder, labels: pd.Series) -> np.ndarray:
-    vals = labels.astype(str)
-    known = set(le.classes_.tolist())
-    y = np.full(len(vals), -1, dtype=np.int64)
-    mask = vals.isin(known)
-    if mask.any():
-        y[mask.to_numpy()] = le.transform(vals[mask])
-    return y
 
 
 def load_splits(df, split_col):
-    feat = _feature_cols(df)
+    feat = feature_cols(df)
     assert feat, "No feature columns found"
 
     train_labels = df.loc[df[split_col] == "train", "attack_type"].astype(str)
@@ -43,7 +33,7 @@ def load_splits(df, split_col):
 
     def part(split_name):
         sub = df.loc[df[split_col] == split_name]
-        y = _safe_transform(le, sub["attack_type"])
+        y = safe_transform(le, sub["attack_type"])
         n_unseen = int((y == -1).sum())
         if n_unseen > 0:
             unseen = sorted(sub.loc[y == -1, "attack_type"].astype(str).unique().tolist())

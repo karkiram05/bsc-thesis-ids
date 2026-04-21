@@ -24,15 +24,8 @@ from src.config import (
     UNSW_MODELS_DIR,
     UNSW_METRICS_DIR,
     UNSW_NON_FEATURE,
+    feature_cols,
 )
-
-
-def _feature_cols(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if c not in UNSW_NON_FEATURE]
-
-
-def _uses_internal_scaler(model):
-    return hasattr(model, "steps") and "scaler" in [s[0] for s in model.steps]
 
 
 def eval_multiclass(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: list[str]) -> None:
@@ -42,6 +35,15 @@ def eval_multiclass(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: lis
     n_classes = len(class_names)
 
     sub = df.loc[df["split"] == "test"]
+    # drop rows whose attack_cat was not seen in training, else LabelEncoder will crash
+    known = set(le.classes_.tolist())
+    cat = sub["attack_cat"].astype(str)
+    keep = cat.isin(known)
+    n_unseen = int((~keep).sum())
+    if n_unseen:
+        unseen = sorted(cat[~keep].unique().tolist())
+        print(f"[eval] warn: {n_unseen} test rows have unseen attack_cat {unseen}, dropping.")
+        sub = sub.loc[keep]
     X = sub[feat].copy()
     y = le.transform(sub["attack_cat"])
 
@@ -56,7 +58,7 @@ def eval_multiclass(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: lis
         print(f"[eval] evaluating {key} ...")
         model = joblib.load(path)
 
-        X_in = X  # LogReg has internal scaler, trees don't need one
+        X_in = X  # trees ignore scaling, LogReg has its own scaler in the pipeline
         pred = model.predict(X_in)
         proba = model.predict_proba(X_in) if hasattr(model, "predict_proba") else None
 
@@ -79,7 +81,6 @@ def eval_multiclass(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: lis
             "confusion_labels": class_names,
         }
 
-        # ROC-AUC (OvR)
         if proba is not None and n_classes > 2:
             try:
                 rec["roc_auc_ovr"] = float(
@@ -88,7 +89,6 @@ def eval_multiclass(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: lis
                 print(f"[warn] ROC-AUC failed for {key}: {e}")
                 rec["roc_auc_ovr"] = None
 
-            # PR-AUC macro
             try:
                 ap_scores = []
                 for i in range(n_classes):
@@ -101,14 +101,12 @@ def eval_multiclass(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: lis
 
         results[key] = rec
 
-        # Save per-model reports
         report = classification_report(
             y, pred, target_names=class_names, digits=4, zero_division=0)
         (out_dir / f"classification_report_{key}.txt").write_text(report, encoding="utf-8")
         pd.DataFrame(cm, index=class_names, columns=class_names).to_csv(
             out_dir / f"confusion_matrix_{key}.csv")
 
-        # Feature importance
         base = model
         if hasattr(model, "steps"):
             for _, step in model.steps:
@@ -151,7 +149,7 @@ def eval_binary(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: list[st
     X = sub[feat].copy()
     ys = sub["label"].values.astype(int)
 
-    # Also load val for threshold tuning
+    # val is used to pick the threshold
     sub_val = df.loc[df["split"] == "val"]
     Xv = sub_val[feat].copy()
     yv = sub_val["label"].values.astype(int)
@@ -169,7 +167,7 @@ def eval_binary(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: list[st
         proba = model.predict_proba(X)[:, 1]
         proba_val = model.predict_proba(Xv)[:, 1]
 
-        # Threshold from val via Youden's J
+        # Youden's J on val (prevalence invariant)
         fpr_val, tpr_val, thr_roc = roc_curve(yv, proba_val)
         j_scores = tpr_val[:-1] - fpr_val[:-1]
         best_j_idx = int(np.argmax(j_scores))
@@ -185,7 +183,6 @@ def eval_binary(df: pd.DataFrame, models_dir: Path, out_dir: Path, feat: list[st
         fp = ((pred == 1) & (ys == 0)).sum()
         fpr = float(fp / n_neg) if n_neg > 0 else 0.0
 
-        # Save ROC/PR curves
         fpr_arr, tpr_arr, _ = roc_curve(ys, proba)
         pd.DataFrame({"fpr": fpr_arr, "tpr": tpr_arr}).to_csv(
             out_dir / f"binary_roc_curve_{key}.csv", index=False)
@@ -238,7 +235,7 @@ def main() -> None:
         raise SystemExit(f"Missing {UNSW_DATA_FILE}. Run: python -m src.prepare_unsw")
 
     df = pd.read_parquet(UNSW_DATA_FILE)
-    feat = _feature_cols(df)
+    feat = feature_cols(df, UNSW_NON_FEATURE)
 
     if args.task == "multiclass":
         eval_multiclass(df, args.models_dir, args.out_dir, feat)

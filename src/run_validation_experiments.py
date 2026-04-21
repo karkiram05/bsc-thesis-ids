@@ -25,13 +25,10 @@ from src.config import (
     REPORTS_DIR,
     NON_FEATURE,
     RNG,
+    feature_cols,
 )
 
 OUT = REPORTS_DIR / "validation"
-
-
-def _feature_cols(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if c not in NON_FEATURE]
 
 
 def _train_eval_multiclass(Xt, yt, Xs, ys, n_classes):
@@ -89,7 +86,7 @@ def exp1_near_duplicate_sensitivity(df: pd.DataFrame) -> None:
     out = OUT / "exp1"
     out.mkdir(parents=True, exist_ok=True)
 
-    feat = _feature_cols(df)
+    feat = feature_cols(df)
     split_col = "split_day"
 
     le = LabelEncoder()
@@ -173,7 +170,7 @@ def exp2_split_policy_sensitivity(df: pd.DataFrame) -> None:
     out = OUT / "exp2"
     out.mkdir(parents=True, exist_ok=True)
 
-    feat = _feature_cols(df)
+    feat = feature_cols(df)
 
     policies = {
         "A": {"train": ["Monday", "Tuesday", "Wednesday"], "val": "Thursday", "test": "Friday"},
@@ -253,7 +250,7 @@ def exp3_binary_operating_points(df: pd.DataFrame) -> None:
     out = OUT / "exp3"
     out.mkdir(parents=True, exist_ok=True)
 
-    feat = _feature_cols(df)
+    feat = feature_cols(df)
     split_col = "split_day"
 
     def part(s):

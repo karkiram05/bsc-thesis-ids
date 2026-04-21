@@ -12,12 +12,12 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
-REPORTS = Path("reports")
-FIG_DIR = REPORTS / "figures"
+from src.config import REPORTS_DIR, FIGURES_DIR
+
+REPORTS = REPORTS_DIR
+FIG_DIR = FIGURES_DIR
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
-
-# ── 1. Day-split attack distribution ────────────────────────────────────────
 
 def fig_day_attack_distribution():
     """Attack types per day -- shows why multi-class fails on day split."""
@@ -103,8 +103,6 @@ def fig_day_attack_distribution():
     print(f"  wrote {out}")
 
 
-# ── 2. Binary vs Multi-class comparison ─────────────────────────────────────
-
 def fig_binary_vs_multiclass():
     """Binary vs multi-class F1 comparison across splits."""
     models = ["LogReg", "RF", "XGBoost", "LightGBM"]
@@ -163,8 +161,6 @@ def fig_binary_vs_multiclass():
     plt.close(fig)
     print(f"  wrote {out}")
 
-
-# ── 3. Threshold transfer visualization ─────────────────────────────────────
 
 def fig_threshold_transfer():
     """Threshold values and impact: strat vs day split."""
@@ -234,8 +230,6 @@ def fig_threshold_transfer():
     print(f"  wrote {out}")
 
 
-# ── 4. UNSW vs CICIDS comparison ────────────────────────────────────────────
-
 def fig_cross_dataset():
     """CICIDS vs UNSW F1 comparison."""
     models = ["LogReg", "RF", "XGBoost", "LightGBM"]
@@ -284,8 +278,6 @@ def fig_cross_dataset():
     plt.close(fig)
     print(f"  wrote {out}")
 
-
-# ── 5. Class imbalance visualization ────────────────────────────────────────
 
 def fig_class_imbalance():
     """Class distribution bar chart (log scale)."""

@@ -24,18 +24,13 @@ from sklearn.metrics import (
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from src.config import DATA_FILE, NON_FEATURE, REPORTS_DIR, RNG
+from src.config import (
+    DATA_FILE, NON_FEATURE, REPORTS_DIR, RNG,
+    feature_cols, binary_y,
+)
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 OUT_DIR = REPORTS_DIR / "lodo"
-
-
-def _feature_cols(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if c not in NON_FEATURE]
-
-
-def _binary_y(df: pd.DataFrame) -> np.ndarray:
-    return (df["attack_type"].astype(str) != "Benign").astype(int).to_numpy()
 
 
 def _build_models(baseline_only: bool = False):
@@ -88,7 +83,7 @@ def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     df = pd.read_parquet(DATA_FILE)
-    feat = _feature_cols(df)
+    feat = feature_cols(df)
     assert feat, "No feature columns found"
 
     model_specs = _build_models(args.baseline_only)
@@ -102,7 +97,7 @@ def main() -> None:
         test_df = df[df["day"] == hold_out_day]
 
         X_test = test_df[feat]
-        y_test = _binary_y(test_df)
+        y_test = binary_y(test_df)
 
         # Use last training day as val for threshold tuning
         day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
@@ -114,9 +109,9 @@ def main() -> None:
         inner_val_df = df[df["day"] == inner_val_day]
 
         X_train = inner_train_df[feat]
-        y_train = _binary_y(inner_train_df)
+        y_train = binary_y(inner_train_df)
         X_val = inner_val_df[feat]
-        y_val = _binary_y(inner_val_df)
+        y_val = binary_y(inner_val_df)
 
         n_attack_test = int(y_test.sum())
         n_attack_val = int(y_val.sum())

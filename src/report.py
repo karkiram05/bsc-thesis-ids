@@ -122,9 +122,7 @@ def _style():
     })
 
 
-# ---------------------------------------------------------------------------
 # Figure 1: Confusion Matrix
-# ---------------------------------------------------------------------------
 
 def plot_confusion_matrix(cm: np.ndarray, labels: list[str], fdir: Path, model: str) -> None:
     _style()
@@ -197,9 +195,7 @@ def plot_confusion_matrix(cm: np.ndarray, labels: list[str], fdir: Path, model: 
     print(f"[report] wrote {out}")
 
 
-# ---------------------------------------------------------------------------
 # Figure 2: Feature Importance
-# ---------------------------------------------------------------------------
 
 def plot_feature_importance(imp_df: pd.DataFrame, fdir: Path, model: str) -> None:
     _style()
@@ -245,9 +241,7 @@ def plot_feature_importance(imp_df: pd.DataFrame, fdir: Path, model: str) -> Non
     print(f"[report] wrote {out}")
 
 
-# ---------------------------------------------------------------------------
 # Figure 3: Model Comparison
-# ---------------------------------------------------------------------------
 
 def plot_model_comparison(full: dict, fdir: Path) -> None:
     _style()
@@ -303,9 +297,7 @@ def plot_model_comparison(full: dict, fdir: Path) -> None:
     print(f"[report] wrote {out}")
 
 
-# ---------------------------------------------------------------------------
 # Figure 4: Per-class F1 heatmap
-# ---------------------------------------------------------------------------
 
 def plot_per_class_f1(full: dict, fdir: Path) -> None:
     _style()
@@ -379,9 +371,7 @@ def plot_per_class_f1(full: dict, fdir: Path) -> None:
     print(f"[report] wrote {out}")
 
 
-# ---------------------------------------------------------------------------
 # Figure 5: ROC curves per class — XGBoost OvR
-# ---------------------------------------------------------------------------
 
 def plot_roc_curves(full: dict, fdir: Path) -> None:
     """Per-class ROC curves from roc_curve_data in metrics.json."""
@@ -422,9 +412,7 @@ def plot_roc_curves(full: dict, fdir: Path) -> None:
     print(f"[report] wrote {out}")
 
 
-# ---------------------------------------------------------------------------
 # Figure 6: Precision-Recall curves — minority classes only
-# ---------------------------------------------------------------------------
 
 def plot_pr_curves(full: dict, fdir: Path) -> None:
     """PR curves for minority classes from pr_curve_data in metrics.json."""
@@ -461,9 +449,7 @@ def plot_pr_curves(full: dict, fdir: Path) -> None:
     print(f"[report] wrote {out}")
 
 
-# ---------------------------------------------------------------------------
 # Figure 7: Cross-dataset generalisation delta
-# ---------------------------------------------------------------------------
 
 def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
     """Generalisation gap chart: strat vs day split."""
@@ -546,9 +532,7 @@ def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
     print(f"[report] wrote {out}")
 
 
-# ---------------------------------------------------------------------------
 # Figure 8: MITRE ATT&CK mapping heatmap table
-# ---------------------------------------------------------------------------
 
 def plot_attck_mapping_table(full: dict, fdir: Path, alerts_path: Path) -> None:
     """ATT&CK mapping heatmap with per-class F1 and flow detectability."""
@@ -651,9 +635,7 @@ def plot_attck_mapping_table(full: dict, fdir: Path, alerts_path: Path) -> None:
     print(f"[report] wrote {out}")
 
 
-# ---------------------------------------------------------------------------
 # Markdown report
-# ---------------------------------------------------------------------------
 
 def _feature_group_report(name: str) -> str:
     for group, features in FEATURE_GROUPS.items():
@@ -796,9 +778,7 @@ def write_report(m: dict, out: Path, adir: Path) -> None:
     print(f"[report] wrote {out_md}")
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 args_global = None
 

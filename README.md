@@ -7,7 +7,9 @@
 
 ## Overview
 
-This project builds and evaluates a reproducible intrusion detection pipeline on the CICIDS2017 dataset. It trains three machine learning models for 15-class multi-class attack detection at the network flow level, evaluates them under two split strategies (stratified and temporal day-based), and maps all detected attack types to MITRE ATT&CK techniques to produce security engineering outputs.
+This project builds and evaluates a reproducible intrusion detection pipeline on two public datasets: **CICIDS2017** (primary) and **UNSW-NB15** (cross-dataset check). It trains four machine learning models — Logistic Regression, Random Forest, XGBoost, and LightGBM — for flow-level attack detection (both multi-class and binary), evaluates them under two split strategies (stratified and temporal day-based), runs a Leave-One-Day-Out cross-validation, and maps all detected attack types to MITRE ATT&CK techniques to produce security engineering outputs.
+
+Alongside the supervised pipeline, an **unsupervised anomaly-detection** baseline (Isolation Forest and Local Outlier Factor) is trained on benign flows only and scored on the same test set, to show what is achievable without any attack labels. This is the honest reference point for "true" anomaly detection in IDS literature.
 
 ---
 
@@ -37,21 +39,30 @@ bsc-thesis-ids/
 │   ├── eval_split_compare.md    # Stratified vs day split comparison
 │   └── report.md                # Full pipeline report
 └── src/
-    ├── config.py                # Shared paths, constants, split config
-    ├── prepare_data.py          # CICIDS2017 data loading, cleaning, split assignment
-    ├── prepare_unsw.py          # UNSW-NB15 data loading, cleaning, split assignment
-    ├── leakage_check.py         # Exact and near-duplicate leakage audit
-    ├── train.py                 # Multi-class model training (LogReg, RF, XGBoost)
-    ├── train_binary.py          # Binary model training (Benign vs Attack)
-    ├── train_unsw.py            # UNSW-NB15 model training (multiclass + binary)
-    ├── eval.py                  # Multi-class evaluation and metrics
-    ├── eval_binary.py           # Binary evaluation with threshold tuning
-    ├── eval_unsw.py             # UNSW-NB15 evaluation
-    ├── eval_lodo.py             # Leave-One-Day-Out binary cross-validation
-    ├── mitre_alerts.py          # ATT&CK technique mapping
-    ├── traffic_analysis.py      # Security engineering analysis and figures
-    ├── report.py                # Report and figure generation
-    └── eval_split_compare.py    # Stratified vs day split comparison
+    ├── config.py                    # Shared paths, constants, split config, common helpers
+    ├── prepare_data.py              # CICIDS2017 data loading, cleaning, split assignment
+    ├── prepare_unsw.py              # UNSW-NB15 data loading, cleaning, split assignment
+    ├── sanity_check.py              # Post-prepare checks (split sizes, class balance, leakage cols gone)
+    ├── leakage_check.py             # Exact and near-duplicate leakage audit
+    ├── train.py                     # Multi-class model training (LogReg, RF, XGBoost, LightGBM)
+    ├── train_binary.py              # Binary model training (Benign vs Attack)
+    ├── train_unsw.py                # UNSW-NB15 model training (multiclass + binary)
+    ├── eval.py                      # Multi-class evaluation and metrics
+    ├── eval_binary.py               # Binary evaluation with threshold tuning
+    ├── eval_unsw.py                 # UNSW-NB15 evaluation
+    ├── eval_lodo.py                 # Leave-One-Day-Out binary cross-validation
+    ├── eval_split_compare.py        # Stratified vs day split comparison
+    ├── run_validation_experiments.py # V1 near-dup, V2 split policy, V3 LODO sensitivity
+    ├── mitre_alerts.py              # ATT&CK technique mapping
+    ├── traffic_analysis.py          # Security engineering analysis and figures
+    ├── report.py                    # Report and figure generation
+    ├── generate_extra_figures.py    # LODO, calibration, master table, generalisation gap
+    ├── generate_defense_figures.py  # Day distribution, binary vs multi, threshold transfer
+    ├── generate_shap_mcnemar.py     # SHAP explainability + McNemar significance tests
+    ├── benchmark_inference.py       # Inference latency / throughput benchmark
+    ├── bootstrap_cis.py             # Bootstrap 95% CIs for binary metrics
+    ├── operating_points.py          # Recall at fixed FPR budgets + ECE calibration
+    └── anomaly_detection.py         # Unsupervised baselines (Isolation Forest, LOF)
 ```
 
 ---
@@ -75,7 +86,7 @@ pip install -r requirements.txt
 ### Option A: Full pipeline (recommended)
 
 ```bash
-python run_pipeline.py
+make full
 ```
 
 ### Option B: Step by step
@@ -128,6 +139,7 @@ python -m src.eval_split_compare --skip-train \
 | Logistic Regression | 0.2250 | 0.8564 | 0.2662 | 0.9859 |
 | Random Forest | 0.8859 | 0.8753 | 0.8452 | 0.9997 |
 | **XGBoost** | **0.9327** | **0.8500** | **0.8627** | **0.9999** |
+| LightGBM | 0.3528 | 0.3279 | 0.2996 | 0.6418 |
 
 ### Binary detection (day split)
 
@@ -147,9 +159,10 @@ Under the temporal day split (train Mon–Wed, val Thu, test Fri), multi-class m
 
 | Model | Multi-class F1 | Binary ROC-AUC | Binary F1 |
 |---|---|---|---|
-| Logistic Regression | 0.4040 | 0.9757 | 0.8878 |
-| Random Forest | 0.4842 | 0.9853 | 0.9242 |
-| **XGBoost** | **0.5223** | **0.9857** | **0.9194** |
+| Logistic Regression | 0.4040 | 0.9757 | 0.8884 |
+| Random Forest | 0.4842 | 0.9853 | 0.9243 |
+| XGBoost | 0.5223 | 0.9857 | 0.9186 |
+| **LightGBM** | **0.5482** | **0.9855** | **0.9209** |
 
 Same model ranking across both datasets, supporting generalisation of methodology.
 
@@ -169,13 +182,20 @@ This follows standard temporal protocol: thresholds are tuned on the first unsee
 
 ---
 
-## Dataset
+## Datasets
 
-**CICIDS2017** — Canadian Institute for Cybersecurity 2,313,150 flows | 73 features | 15 attack classes  
+**CICIDS2017** (primary) — Canadian Institute for Cybersecurity  
+2,313,150 flows | 73 features | 15 attack classes (14 attacks + Benign) | 85.5% benign
 
 Leakage columns dropped before modelling:
 - `Flow Bytes/s`, `Flow Packets/s`, `Fwd Packets/s`, `Bwd Packets/s`  
   (algebraically derived from other features — would allow shortcut learning)
+
+**UNSW-NB15** (cross-dataset check) — UNSW Canberra  
+257,673 rows | 196 features (after one-hot) | 10 classes (9 attacks + Normal) | 36.3% normal
+
+Used to confirm that the methodology and model ranking generalise beyond the
+primary benchmark.
 
 Near-duplicate leakage audit found ~28,000 flow groups crossing the day-split boundary and ~26,000 crossing the stratified split boundary. This is a known limitation of flow datasets without 5-tuple identifiers, documented in 
 `reports/leakage_check.md`.
@@ -278,8 +298,17 @@ python -m src.generate_extra_figures
 python -m src.generate_defense_figures
 python -m src.generate_shap_mcnemar
 
-# 9. Generate thesis Word document
-python -m src.generate_thesis_docx
+# 9. Inference latency / throughput benchmark (deployment metric)
+python -m src.benchmark_inference
+
+# 10. Bootstrap confidence intervals on key metrics
+python -m src.bootstrap_cis
+
+# 11. Operating points: recall at fixed FPR budgets + calibration (ECE)
+python -m src.operating_points
+
+# 12. Unsupervised anomaly detection baseline (Isolation Forest, LOF)
+python -m src.anomaly_detection
 ```
 
 ### Verification

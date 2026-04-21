@@ -14,19 +14,17 @@ MAPPING_PATH = Path(__file__).resolve().parent / "mitre_mapping.json"
 
 
 def _lookup(mapping: dict, attack_type: str) -> dict:
-    """Look up attack_type in MITRE mapping with fuzzy fallbacks."""
+    """Find MITRE entry for attack_type, trying fuzzy matches before fallback."""
     at = str(attack_type).strip()
 
-    # Exact match
     if at in mapping:
         return {**mapping[at], "mapped_from": at}
 
-    # Normalise dashes
+    # different dash characters appear across datasets
     norm = at.replace(" - ", "-").replace(" – ", "-")
     if norm in mapping:
         return {**mapping[norm], "mapped_from": norm}
 
-    # Case-insensitive
     at_lower = at.lower()
     norm_lower = norm.lower()
     for k, v in mapping.items():
@@ -35,15 +33,20 @@ def _lookup(mapping: dict, attack_type: str) -> dict:
         if k.lower() == at_lower or k.lower() == norm_lower:
             return {**v, "mapped_from": k}
 
-    # Partial substring match
     for k, v in mapping.items():
         if k.startswith("_"):
             continue
         if at_lower in k.lower() or k.lower() in at_lower:
             return {**v, "mapped_from": k}
 
-    # Fallback
-    return {**mapping["_default"], "mapped_from": "_default"}
+    # if mapping file got edited and _default is missing, still return something usable
+    default = mapping.get("_default", {
+        "attck_id": None,
+        "attck_name": None,
+        "ck_phase": None,
+        "justification": "No MITRE mapping available for this attack type.",
+    })
+    return {**default, "mapped_from": "_default"}
 
 
 def main() -> None:
@@ -73,7 +76,6 @@ def main() -> None:
     summary = m.get("summary", m)
     full = m.get("full", m)
 
-    # Pick model to use
     if args.model:
         best = args.model
     else:
@@ -125,7 +127,6 @@ def main() -> None:
     pd.DataFrame(alerts).to_csv(out_csv, index=False)
     print(f"[mitre] wrote {out_csv}")
 
-    # Summary
     print(f"[mitre] {len(alerts)} unique predicted attack types mapped.")
     print(f"[mitre] {len(alerts) - len(unmapped)} had precise mappings, {len(unmapped)} used fallback.")
 

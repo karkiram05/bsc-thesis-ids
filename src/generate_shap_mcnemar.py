@@ -12,21 +12,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import shap
 
-from src.config import DATA_FILE, NON_FEATURE, REPORTS_DIR
+from src.config import (
+    DATA_FILE, NON_FEATURE, REPORTS_DIR, MODELS_DIR, FIGURES_DIR,
+    feature_cols, binary_y,
+)
 
-FIG_DIR = REPORTS_DIR / "figures"
+FIG_DIR = FIGURES_DIR
 FIG_DIR.mkdir(parents=True, exist_ok=True)
-MODELS_DIR = Path("models")
-
-
-# ── Helpers ────────────────────────────────────────────────────────────
-
-def _feature_cols(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if c not in NON_FEATURE]
-
-
-def _binary_y(df: pd.DataFrame) -> np.ndarray:
-    return (df["attack_type"].astype(str) != "Benign").astype(int).to_numpy()
 
 
 def _render_table(ax, col_labels, row_data, title, col_widths=None,
@@ -103,18 +95,16 @@ def _render_table(ax, col_labels, row_data, title, col_widths=None,
             pass
 
 
-# ── 1. SHAP Analysis ──────────────────────────────────────────────────
-
 def shap_analysis():
     """SHAP plots for RF binary model (day split)."""
     print("[SHAP] Loading data and model...")
 
     df = pd.read_parquet(DATA_FILE)
-    feat = _feature_cols(df)
+    feat = feature_cols(df)
 
     test_df = df[df["split_day"] == "test"]
     X_test = test_df[feat]
-    y_test = _binary_y(test_df)
+    y_test = binary_y(test_df)
 
     rf_path = MODELS_DIR / "binary_day" / "random_forest.joblib"
     if not rf_path.exists():
@@ -213,21 +203,19 @@ def shap_analysis():
     print("[SHAP] Done.")
 
 
-# ── 2. McNemar's Test ─────────────────────────────────────────────────
-
 def mcnemar_test():
     """Pairwise McNemar's test on binary day-split predictions."""
     print("[McNemar] Loading data and models...")
 
     df = pd.read_parquet(DATA_FILE)
-    feat = _feature_cols(df)
+    feat = feature_cols(df)
 
     test_df = df[df["split_day"] == "test"]
     val_df = df[df["split_day"] == "val"]
     X_test = test_df[feat]
-    y_test = _binary_y(test_df)
+    y_test = binary_y(test_df)
     X_val = val_df[feat]
-    y_val = _binary_y(val_df)
+    y_val = binary_y(val_df)
 
     results = {}
 
@@ -311,8 +299,6 @@ def mcnemar_test():
 
     return mcnemar_rows
 
-
-# ── 3. Styled McNemar Table (PNG) ─────────────────────────────────────
 
 def fig_mcnemar(mcnemar_rows: list[dict] | None = None):
     """McNemar's test results as styled PNG table."""
@@ -421,8 +407,6 @@ def fig_mcnemar(mcnemar_rows: list[dict] | None = None):
     print(f"  wrote {out3}")
 
 
-# ── 4. Styled Hyperparameter Table (PNG) ──────────────────────────────
-
 def fig_hyperparameters():
     """Hyperparameter table as styled PNG."""
     col_labels = ["Hyperparameter", "Logistic Reg.", "Random Forest", "XGBoost", "LightGBM"]
@@ -473,8 +457,6 @@ def fig_hyperparameters():
     plt.close(fig2)
     print(f"  wrote {out2}")
 
-
-# ── Main ──────────────────────────────────────────────────────────────
 
 def main():
     print("[generate_shap_mcnemar] starting...\n")

@@ -11,12 +11,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-REPORTS = Path("reports")
-FIG_DIR = REPORTS / "figures"
+from src.config import REPORTS_DIR, FIGURES_DIR
+
+REPORTS = REPORTS_DIR
+FIG_DIR = FIGURES_DIR
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
-
-# ── 1. LODO fold-level performance ──────────────────────────────────────────
 
 def fig_lodo_folds():
     """LODO fold-level ROC-AUC and F1 bar chart."""
@@ -66,8 +66,6 @@ def fig_lodo_folds():
     print(f"  wrote {out}")
 
 
-# ── 2. Calibration curves ──────────────────────────────────────────────────
-
 def fig_calibration():
     """Calibration curves for binary classifiers."""
     models = ["logreg", "random_forest", "xgboost", "lightgbm"]
@@ -103,8 +101,6 @@ def fig_calibration():
     plt.close(fig)
     print(f"  wrote {out}")
 
-
-# ── 3. Master results table ─────────────────────────────────────────────────
 
 def fig_master_table():
     """Master results table across all experiments."""
@@ -187,8 +183,6 @@ def fig_master_table():
     print(f"  wrote {md_path}")
 
 
-# ── 4. Generalisation gap — all models, multi + binary ───────────────────────
-
 def fig_generalisation_gap():
     """Strat vs day F1 for all models."""
     models = ["logreg", "random_forest", "xgboost", "lightgbm"]
@@ -251,8 +245,6 @@ def fig_generalisation_gap():
     plt.close(fig)
     print(f"  wrote {out}")
 
-
-# ── 5. Feature importance overlap: CICIDS vs UNSW ───────────────────────────
 
 def fig_feature_overlap():
     """Top-15 XGBoost features: CICIDS vs UNSW side by side."""

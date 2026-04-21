@@ -8,17 +8,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_FILE, NON_FEATURE, REPORTS_DIR
+from src.config import DATA_FILE, NON_FEATURE, REPORTS_DIR, feature_cols
 
 # 5-tuple columns (may or may not be present)
 TUPLE5_CANDIDATES = [
     ["Source IP", "Destination IP", "Source Port", "Destination Port", "Protocol"],
     ["SourceIP", "DestinationIP", "SourcePort", "DestinationPort", "Protocol"],
 ]
-
-
-def _feature_cols(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if c not in NON_FEATURE and c in df.columns]
 
 
 def _has_5tuple(df: pd.DataFrame) -> list[str] | None:
@@ -38,7 +34,7 @@ def main() -> None:
         raise SystemExit(f"Missing {DATA_FILE}. Run: make data")
 
     df = pd.read_parquet(DATA_FILE)
-    feat = _feature_cols(df)
+    feat = feature_cols(df)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
 
