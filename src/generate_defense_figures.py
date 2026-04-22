@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import numpy as np
-import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -167,7 +163,6 @@ def fig_threshold_transfer():
 
     # Strat thresholds (high, near 0.5)
     thr_strat = [0.569272, 0.244447, 0.401882, 0.420818]
-    f1_strat = [0.8962, 0.9960, 0.9974, 0.9976]
 
     # Day thresholds (very low for tree models — Youden's J)
     thr_day = [0.062665, 0.009024, 0.000323, 0.000178]
@@ -303,7 +298,7 @@ def fig_class_imbalance():
     counts = [c[1] for c in classes]
     colors = [c[2] for c in classes]
 
-    bars = ax.barh(range(len(names)-1, -1, -1), counts, color=colors, edgecolor="white")
+    ax.barh(range(len(names)-1, -1, -1), counts, color=colors, edgecolor="white")
     ax.set_yticks(range(len(names)-1, -1, -1))
     ax.set_yticklabels(names, fontsize=10)
     ax.set_xscale("log")

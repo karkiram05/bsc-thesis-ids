@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_FILE, NON_FEATURE, REPORTS_DIR, feature_cols
+from src.config import DATA_FILE, REPORTS_DIR, feature_cols
 
 # 5-tuple columns (may or may not be present)
 TUPLE5_CANDIDATES = [

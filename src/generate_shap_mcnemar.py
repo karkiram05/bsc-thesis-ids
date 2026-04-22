@@ -1,9 +1,6 @@
 """SHAP explainability, McNemar's test, and styled table figures."""
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import joblib
 import numpy as np
 import pandas as pd
@@ -12,7 +9,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from src.config import (
-    DATA_FILE, NON_FEATURE, REPORTS_DIR, MODELS_DIR, FIGURES_DIR,
+    DATA_FILE, REPORTS_DIR, MODELS_DIR, FIGURES_DIR,
     feature_cols, binary_y,
 )
 

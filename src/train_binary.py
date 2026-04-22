@@ -15,7 +15,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from src.config import (
-    DATA_FILE, MODELS_DIR, NON_FEATURE, RNG,
+    DATA_FILE, MODELS_DIR, RNG,
     SPLIT_COL_DAY, SPLIT_COL_STRAT, LEAKAGE_COLUMNS, feature_cols,
 )
 

@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -12,7 +9,7 @@ import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_FILE, REPORTS_DIR, NON_FEATURE
+from src.config import DATA_FILE, REPORTS_DIR
 
 OUT_DIR = REPORTS_DIR / "traffic_analysis"
 FIG_DIR = OUT_DIR / "figures"
@@ -395,10 +392,6 @@ def section_detection_signatures(df: pd.DataFrame, feat: list[str]) -> str:
         "Detection rules derived from flow statistics (Sigma-style). "
         "Real deployment needs network-specific threshold tuning.\n\n",
     ]
-
-    # Compute per-attack percentiles for threshold derivation
-    attacks = [a for a in sorted(df["attack_type"].unique()) if a != "Benign"]
-    benign = df[df["attack_type"] == "Benign"]
 
     SIGMA_RULES = {
         "FTP-Patator": {

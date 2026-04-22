@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import warnings
-from pathlib import Path
 
 import joblib
 import numpy as np
@@ -18,7 +17,7 @@ from sklearn.metrics import (
 )
 
 from src.config import (
-    DATA_FILE, NON_FEATURE, REPORTS_DIR, FIGURES_DIR, MODELS_DIR, RNG,
+    DATA_FILE, REPORTS_DIR, FIGURES_DIR, MODELS_DIR, RNG,
     feature_cols,
 )
 

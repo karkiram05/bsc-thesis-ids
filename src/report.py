@@ -12,8 +12,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from matplotlib.gridspec import GridSpec
-import matplotlib.ticker as mticker
 
 from src.config import METRICS_DIR, FIGURES_DIR, ALERTS_DIR, REPORTS_DIR
 

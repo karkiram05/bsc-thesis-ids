@@ -11,7 +11,6 @@ from src.config import (
     DATA_FILE,
     LEAKAGE_COLUMNS,
     MODELS_DIR,
-    NON_FEATURE,
     RNG,
     SPLIT_COL_DAY,
     SPLIT_COL_STRAT,

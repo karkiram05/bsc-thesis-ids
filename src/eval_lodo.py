@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -17,7 +16,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     average_precision_score,
     f1_score,
-    precision_recall_fscore_support,
     roc_auc_score,
     roc_curve,
 )
@@ -25,7 +23,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from src.config import (
-    DATA_FILE, NON_FEATURE, REPORTS_DIR, RNG,
+    DATA_FILE, REPORTS_DIR, RNG,
     feature_cols, binary_y,
 )
 
@@ -93,7 +91,6 @@ def main() -> None:
 
     for hold_out_day in DAYS:
         train_days = [d for d in DAYS if d != hold_out_day]
-        train_df = df[df["day"].isin(train_days)]
         test_df = df[df["day"] == hold_out_day]
 
         X_test = test_df[feat]

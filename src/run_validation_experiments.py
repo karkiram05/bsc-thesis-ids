@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -23,7 +20,6 @@ from sklearn.metrics import (
 from src.config import (
     DATA_FILE,
     REPORTS_DIR,
-    NON_FEATURE,
     RNG,
     feature_cols,
 )

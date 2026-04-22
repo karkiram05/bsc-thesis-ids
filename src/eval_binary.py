@@ -24,7 +24,6 @@ from sklearn.metrics import (
 from src.config import (
     DATA_FILE,
     MODELS_DIR,
-    NON_FEATURE,
     REPORTS_DIR,
     SPLIT_COL_DAY,
     SPLIT_COL_STRAT,
@@ -109,10 +108,6 @@ def main() -> None:
           f"test={len(ys)} (attack={ys.sum()})")
 
     bin_models_dir = _resolve_models_dir(Path(args.models_dir), args.split)
-    scaler_path = bin_models_dir / "scaler.joblib"
-    if not scaler_path.exists():
-        raise SystemExit(f"Missing {scaler_path}. Re-run src.train_binary.")
-    scaler = joblib.load(scaler_path)
 
     models: dict[str, tuple[object, pd.DataFrame | np.ndarray, pd.DataFrame | np.ndarray]] = {}
     for key in ["logreg", "random_forest", "xgboost", "lightgbm"]:
@@ -161,8 +156,6 @@ def main() -> None:
         print(f"[{key}] threshold={best_thr:.6f} via {thr_source} "
               f"(Best-F1 thr={thr_bestf1:.4f}, Youden thr={thr_youden:.6f}, "
               f"valF1={best_val_f1:.4f})")
-
-        thr_table_val = _threshold_table(yv, proba_val)
 
         pred = (proba >= best_thr).astype(int)
 

@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
@@ -12,7 +9,6 @@ from src.config import (
     DATA_FILE,
     LEAKAGE_COLUMNS,
     NON_FEATURE,
-    PROCESSED_DIR,
     REPORTS_DIR,
     SPLIT_COL_DAY,
     SPLIT_COL_STRAT,
@@ -88,7 +84,6 @@ def main() -> None:
         for part in ["train", "val", "test"]:
             sub = df[df[split_col] == part]
             n = len(sub)
-            classes = set(sub["attack_type"].unique())
             pct = n / len(df) * 100
             lines.append(f"\n### {part} ({n:,} rows, {pct:.1f}%)\n\n")
             dist_part = _class_dist(sub["attack_type"])
