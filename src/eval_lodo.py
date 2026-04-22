@@ -56,7 +56,7 @@ def _build_models(baseline_only: bool = False):
                 n_estimators=400, max_depth=8, learning_rate=0.05,
                 subsample=0.9, colsample_bytree=0.9, reg_lambda=1.0,
                 min_child_weight=1, eval_metric="logloss",
-                random_state=RNG, n_jobs=-1,
+                random_state=RNG, n_jobs=-1, verbosity=0,
             )
         models.append(("xgboost", _xgb_factory))
 

@@ -84,12 +84,20 @@ def main() -> None:
     dropped_nan = int(before - len(df))
     print(f"[clean] dropped {dropped_nan} NaN/inf rows, shape={df.shape}")
 
-    # One-hot encode categorical columns
+    # One-hot encode categorical columns using TRAIN vocabulary only.
+    # If test (or val) has a category not seen in train, reindex drops it:
+    # that row ends up with all-zero dummies for the unseen value, which is
+    # the safe fallback (the model never saw positive signal for it anyway).
+    # Fitting on train+test together would otherwise give the model a feature
+    # column that is always 0 in training — test-dependent and undesirable.
+    train_mask = df["split"] == "train"
     for col in UNSW_CATEGORICAL:
         if col in df.columns:
-            dummies = pd.get_dummies(df[col], prefix=col, dtype=int)
-            df = pd.concat([df.drop(columns=[col]), dummies], axis=1)
-    print(f"[encode] after one-hot encoding: {df.shape}")
+            train_vocab = pd.get_dummies(df.loc[train_mask, col], prefix=col, dtype=int).columns
+            all_dummies = pd.get_dummies(df[col], prefix=col, dtype=int)
+            all_dummies = all_dummies.reindex(columns=train_vocab, fill_value=0)
+            df = pd.concat([df.drop(columns=[col]), all_dummies], axis=1)
+    print(f"[encode] after one-hot encoding (train-only vocab): {df.shape}")
 
     # Save
     df.to_parquet(UNSW_DATA_FILE, index=False)

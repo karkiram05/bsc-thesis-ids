@@ -16,7 +16,7 @@ from sklearn.preprocessing import StandardScaler
 
 from src.config import (
     DATA_FILE, MODELS_DIR, NON_FEATURE, RNG,
-    SPLIT_COL_DAY, SPLIT_COL_STRAT, feature_cols,
+    SPLIT_COL_DAY, SPLIT_COL_STRAT, LEAKAGE_COLUMNS, feature_cols,
 )
 
 
@@ -41,6 +41,16 @@ def main() -> None:
         raise SystemExit(f"Missing {DATA_FILE}. Run: make data")
 
     df = pd.read_parquet(DATA_FILE)
+
+    # defensive: leakage columns (Flow Bytes/s etc.) must already be stripped
+    # by prepare_data. Match train.py so both trainers fail loud if not.
+    present_leak = [c for c in df.columns if c in LEAKAGE_COLUMNS]
+    if present_leak:
+        raise SystemExit(
+            f"Leakage columns present in data: {present_leak}. "
+            "Rebuild with: python -m src.prepare_data"
+        )
+
     for s in ["train", "val", "test"]:
         cnt = (df[split_col] == s).sum()
         if cnt == 0:

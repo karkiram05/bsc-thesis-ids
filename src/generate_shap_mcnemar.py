@@ -386,15 +386,27 @@ def fig_mcnemar(mcnemar_rows: list[dict] | None = None):
     plt.close(fig)
     print(f"  wrote {out}")
 
-    # Interpretation box
+    # Interpretation box — numbers are pulled from the live mcnemar_rows so
+    # the defense figure always reflects the latest run, not stale values.
+    n_sig = sum(1 for r in mcnemar_rows if r["sig"] == "YES")
+    rf_lines = []
+    for r in mcnemar_rows:
+        if r["a"] == "random_forest" and r["b"] in ("xgboost", "lightgbm"):
+            opp_name = {"xgboost": "XGB", "lightgbm": "LGB"}[r["b"]]
+            if r["b_val"] > 0:
+                ratio = r["c_val"] / r["b_val"]
+                rf_lines.append(
+                    f"   - RF right & {opp_name} wrong: {r['c_val']:,} samples vs "
+                    f"{r['b_val']:,} opposite ({ratio:.1f}x ratio)"
+                )
+    rf_block = "\n".join(rf_lines) if rf_lines else "   (RF comparisons not available)"
     fig3, ax3 = plt.subplots(figsize=(12, 3.5))
     ax3.axis("off")
     text = (
         "Interpretation:\n\n"
-        "1. All 6 pairwise comparisons are statistically significant (p < 0.0001)\n"
-        "2. Random Forest is significantly better than all other models\n"
-        "   - RF right & XGB wrong: 31,299 samples vs 13,980 opposite (2.2x ratio)\n"
-        "   - RF right & LGB wrong: 34,778 samples vs 15,392 opposite (2.3x ratio)\n"
+        f"1. {n_sig} of {len(mcnemar_rows)} pairwise comparisons are statistically significant (p < 0.05)\n"
+        "2. Random Forest pairwise breakdown:\n"
+        f"{rf_block}\n"
         "3. McNemar's test with Yates continuity correction (chi-squared, df=1)\n"
         "4. Conclusion: RF binary detector superiority is not due to chance"
     )

@@ -25,6 +25,7 @@ from src.config import (
     DATA_FILE,
     MODELS_DIR,
     NON_FEATURE,
+    REPORTS_DIR,
     SPLIT_COL_DAY,
     SPLIT_COL_STRAT,
     feature_cols,
@@ -87,7 +88,7 @@ def _resolve_models_dir(models_dir: Path, split: str) -> Path:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--split", choices=["day", "strat"], default="strat")
-    ap.add_argument("--out-dir", type=Path, default=Path("reports/metrics_binary"))
+    ap.add_argument("--out-dir", type=Path, default=REPORTS_DIR / "metrics_binary")
     ap.add_argument("--models-dir", type=Path, default=MODELS_DIR,
                     help="Where to save/load binary models")
     args = ap.parse_args()
