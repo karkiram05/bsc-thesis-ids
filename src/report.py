@@ -15,7 +15,7 @@ import matplotlib.patches as mpatches
 
 from src.config import METRICS_DIR, FIGURES_DIR, ALERTS_DIR, REPORTS_DIR
 
-# Dark theme colours
+# dark theme colours
 BG       = "#0d1117"
 SURFACE  = "#161b22"
 BORDER   = "#30363d"
@@ -120,7 +120,7 @@ def _style():
     })
 
 
-# Figure 1: Confusion Matrix
+# figure 1: confusion matrix
 
 def plot_confusion_matrix(cm: np.ndarray, labels: list[str], fdir: Path, model: str) -> None:
     _style()
@@ -193,7 +193,7 @@ def plot_confusion_matrix(cm: np.ndarray, labels: list[str], fdir: Path, model: 
     print(f"[report] wrote {out}")
 
 
-# Figure 2: Feature Importance
+# figure 2: feature importance
 
 def plot_feature_importance(imp_df: pd.DataFrame, fdir: Path, model: str) -> None:
     _style()
@@ -239,7 +239,7 @@ def plot_feature_importance(imp_df: pd.DataFrame, fdir: Path, model: str) -> Non
     print(f"[report] wrote {out}")
 
 
-# Figure 3: Model Comparison
+# figure 3: model comparison
 
 def plot_model_comparison(full: dict, fdir: Path) -> None:
     _style()
@@ -277,7 +277,7 @@ def plot_model_comparison(full: dict, fdir: Path) -> None:
     ax.spines["left"].set_color(BORDER)
     ax.spines["bottom"].set_color(BORDER)
 
-    # Accuracy / ROC text above bars
+    # acc/roc text above bars
     for i, model in enumerate(models):
         acc = full[model].get("accuracy") or full[model].get("micro_f1")
         roc = full[model].get("roc_auc_ovr") or full[model].get("roc_auc")
@@ -295,7 +295,7 @@ def plot_model_comparison(full: dict, fdir: Path) -> None:
     print(f"[report] wrote {out}")
 
 
-# Figure 4: Per-class F1 heatmap
+# figure 4: per-class F1 heatmap
 
 def plot_per_class_f1(full: dict, fdir: Path) -> None:
     _style()
@@ -339,7 +339,7 @@ def plot_per_class_f1(full: dict, fdir: Path) -> None:
     ax.set_title("Per-Class F1 Score by Model  (green = good, red = poor)",
                  color=TEXT, fontsize=11, fontweight="bold", pad=10)
 
-    # Severity markers above x-axis
+    # severity marks above x-axis
     for ci, cls in enumerate(all_classes):
         sev = SEVERITY.get(cls)
         sev_text = {"CRITICAL": "[C]", "HIGH": "[H]", "MEDIUM": "[M]"}.get(sev, "")
@@ -348,7 +348,7 @@ def plot_per_class_f1(full: dict, fdir: Path) -> None:
             ax.text(ci, -0.7, sev_text, ha="center", fontsize=6.5,
                     color=sev_color, fontweight="bold")
 
-    # Severity legend
+    # severity legend
     sev_patches = [
         mpatches.Patch(color=RED,      label="[C] = Critical severity"),
         mpatches.Patch(color=ORANGE,   label="[H] = High severity"),
@@ -369,7 +369,7 @@ def plot_per_class_f1(full: dict, fdir: Path) -> None:
     print(f"[report] wrote {out}")
 
 
-# Figure 5: ROC curves per class — XGBoost OvR
+# figure 5: ROC curves per class
 
 def plot_roc_curves(full: dict, fdir: Path) -> None:
     """Per-class ROC curves from roc_curve_data in metrics.json."""
@@ -410,7 +410,7 @@ def plot_roc_curves(full: dict, fdir: Path) -> None:
     print(f"[report] wrote {out}")
 
 
-# Figure 6: Precision-Recall curves — minority classes only
+# figure 6: PR curves for minority classes
 
 def plot_pr_curves(full: dict, fdir: Path) -> None:
     """PR curves for minority classes from pr_curve_data in metrics.json."""
@@ -447,7 +447,7 @@ def plot_pr_curves(full: dict, fdir: Path) -> None:
     print(f"[report] wrote {out}")
 
 
-# Figure 7: Cross-dataset generalisation delta
+# figure 7: cross-split gap
 
 def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
     """Generalisation gap chart: strat vs day split."""
@@ -464,7 +464,7 @@ def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
     m_strat = json.loads(strat_path.read_text()).get("full", {})
     m_day   = json.loads(day_path.read_text()).get("full", {})
 
-    # Use XGBoost if available, else best available model
+    # prefer XGBoost
     model_key = "xgboost" if "xgboost" in m_strat else next(iter(m_strat), None)
     if not model_key or model_key not in m_day:
         print("[report] crossdataset_delta.png skipped — model not present in both splits")
@@ -485,7 +485,7 @@ def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5.5))
     fig.patch.set_facecolor(BG)
 
-    # Left: grouped bar
+    # left: grouped bar
     b1 = ax1.bar(x - w/2, in_vals,  w, label="Strat split (in-dist)",  color=ACCENT,  alpha=0.9)
     b2 = ax1.bar(x + w/2, out_vals, w, label="Day split (out-of-dist)", color=ORANGE, alpha=0.9)
     ax1.set_xticks(x)
@@ -506,7 +506,7 @@ def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
         ax1.text(bar.get_x() + bar.get_width()/2, h + 0.01,
                  f"{h:.3f}", ha="center", va="bottom", color=ORANGE, fontsize=8)
 
-    # Right: delta
+    # right: delta
     delta_colors = [RED if d > 0.05 else ORANGE if d > 0 else GREEN for d in deltas]
     ax2.bar(x, deltas, color=delta_colors, alpha=0.85)
     ax2.axhline(0, color=TEXT, lw=0.8, alpha=0.4)
@@ -530,13 +530,13 @@ def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
     print(f"[report] wrote {out}")
 
 
-# Figure 8: MITRE ATT&CK mapping heatmap table
+# figure 8: ATT&CK mapping table
 
 def plot_attck_mapping_table(full: dict, fdir: Path, alerts_path: Path) -> None:
     """ATT&CK mapping heatmap with per-class F1 and flow detectability."""
     _style()
 
-    # Best available model with per_class data
+    # best model with per_class data
     model_key = "xgboost" if "xgboost" in full else next(
         (k for k, v in full.items() if isinstance(v, dict) and "per_class" in v), None)
     if not model_key:
@@ -545,7 +545,7 @@ def plot_attck_mapping_table(full: dict, fdir: Path, alerts_path: Path) -> None:
 
     per_class = full[model_key].get("per_class", {})
 
-    # Technique IDs and SOC notes
+    # technique IDs and SOC notes
     TECHNIQUE_MAP = {
         "DoS Hulk":                ("T1498",     "Network DoS",             True,  "High volume — easy"),
         "DDoS":                    ("T1498",     "Network DoS",             True,  "Bandwidth signature"),
@@ -572,7 +572,7 @@ def plot_attck_mapping_table(full: dict, fdir: Path, alerts_path: Path) -> None:
         f1 = per_class.get(cls, {}).get("f1", 0.0)
         rows.append((cls, tactic or "—", tech_id or "—", tech_name or "—", f1, flow_vis, soc))
 
-    # Sort by tactic then F1
+    # sort by tactic then F1
     rows.sort(key=lambda r: (r[1], -r[4]))
     n = len(rows)
 
@@ -613,7 +613,7 @@ def plot_attck_mapping_table(full: dict, fdir: Path, alerts_path: Path) -> None:
 
         ax.text(col_x[6], i, note, color=MUTED, fontsize=7.5, va="center")
 
-    # Tactic legend
+    # tactic legend
     unique_tactics = sorted({r[1] for r in rows if r[1] != "—"})
     patches = [mpatches.Patch(color=TACTIC_COLORS.get(t, MUTED), label=t) for t in unique_tactics]
     ax.legend(handles=patches, loc="lower right", facecolor=SURFACE, edgecolor=BORDER,
@@ -633,7 +633,7 @@ def plot_attck_mapping_table(full: dict, fdir: Path, alerts_path: Path) -> None:
     print(f"[report] wrote {out}")
 
 
-# Markdown report
+# markdown report
 
 def _feature_group_report(name: str) -> str:
     for group, features in FEATURE_GROUPS.items():
@@ -674,7 +674,7 @@ def write_report(m: dict, out: Path, adir: Path) -> None:
         f"\n**Best model (macro F1):** `{best}`\n\n",
         "**Key observations:**\n\n",
     ]
-    # Dynamic observations from actual metrics
+    # observations from metrics
     model_f1s = {k: full[k]["macro_f1"] for k in models}
     sorted_models = sorted(model_f1s.items(), key=lambda x: x[1], reverse=True)
     if len(sorted_models) >= 1:
@@ -776,7 +776,7 @@ def write_report(m: dict, out: Path, adir: Path) -> None:
     print(f"[report] wrote {out_md}")
 
 
-# Main
+# main
 
 args_global = None
 
@@ -808,38 +808,38 @@ def main() -> None:
     err     = summary.get("error_analysis", {})
     best    = err.get("best_model", "xgboost")
 
-    # Figure 1: Confusion matrix
+    # fig 1: confusion matrix
     if best in full and "confusion_matrix" in full[best]:
         cm     = np.array(full[best]["confusion_matrix"])
         labels = full[best].get("confusion_labels", [str(i) for i in range(cm.shape[0])])
         plot_confusion_matrix(cm, labels, fdir, best)
 
-    # Figure 2: Feature importance (both models, annotation removed)
+    # fig 2: feature importance
     for key in ["xgboost", "lightgbm", "random_forest"]:
         p = mdir / f"feature_importance_{key}.csv"
         if p.exists():
             imp = pd.read_csv(p)
             plot_feature_importance(imp, fdir, key)
 
-    # Figure 3: Model comparison (accuracy row fixed)
+    # fig 3: model comparison
     plot_model_comparison(full, fdir)
 
-    # Figure 4: Per-class F1 (severity legend added)
+    # fig 4: per-class F1
     plot_per_class_f1(full, fdir)
 
-    # Figure 5: ROC curves
+    # fig 5: ROC curves
     plot_roc_curves(full, fdir)
 
-    # Figure 6: PR curves minority classes
+    # fig 6: PR curves (minority)
     plot_pr_curves(full, fdir)
 
-    # Figure 7: Cross-dataset delta
+    # fig 7: cross-split delta
     plot_crossdataset_delta(fdir, mpath)
 
-    # Figure 8: ATT&CK mapping heatmap table
+    # fig 8: ATT&CK table
     plot_attck_mapping_table(full, fdir, adir)
 
-    # Markdown report
+    # markdown report
     write_report(m, out, adir)
 
 
