@@ -2,7 +2,7 @@
 .PHONY: unsw-data unsw-train unsw-eval unsw-all
 .PHONY: binary binary-strat binary-day lodo validation
 .PHONY: figures shap-mcnemar defense-figures extra-figures
-.PHONY: benchmark bootstrap operating-points anomaly full
+.PHONY: benchmark bootstrap operating-points anomaly adversarial full
 
 PY ?= python
 SPLIT ?= day
@@ -93,6 +93,9 @@ operating-points:
 anomaly:
 	$(PY) -m src.anomaly_detection
 
+adversarial:
+	$(PY) -m src.adversarial_eval
+
 # ── Full reproducible pipeline ──────────────────────────────────────
 full: data sanity leakage-check
 	$(PY) -m src.train --split strat --out-dir models/baseline_strat
@@ -113,6 +116,7 @@ full: data sanity leakage-check
 	$(MAKE) bootstrap
 	$(MAKE) operating-points
 	$(MAKE) anomaly
+	$(MAKE) adversarial
 
 # ── Cleanup ──────────────────────────────────────────────────────────
 clean:
