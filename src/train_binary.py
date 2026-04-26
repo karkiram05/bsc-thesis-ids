@@ -90,6 +90,7 @@ def main() -> None:
     models: list[tuple[str, object]] = []
 
     # LogReg
+    print("[train] LogReg ...")
     lr = Pipeline([
         ("scaler", StandardScaler()),
         ("clf", LogisticRegression(
@@ -102,8 +103,10 @@ def main() -> None:
     ])
     lr.fit(Xt, yt)
     models.append(("logreg", lr))
+    print("[train] LogReg done.")
 
     # RandomForest
+    print("[train] RandomForest ...")
     rf = RandomForestClassifier(
         n_estimators=300,
         max_depth=24,
@@ -114,6 +117,7 @@ def main() -> None:
     )
     rf.fit(Xt, yt)
     models.append(("random_forest", rf))
+    print("[train] RandomForest done.")
 
     # XGBoost
     if not args.baseline_only:
@@ -122,6 +126,7 @@ def main() -> None:
         n_neg = max(int((yt == 0).sum()), 1)
         scale_pos_weight = n_neg / n_pos
 
+        print("[train] XGBoost ...")
         xgb_clf = xgb.XGBClassifier(
             n_estimators=400,
             max_depth=8,
@@ -137,6 +142,7 @@ def main() -> None:
         )
         xgb_clf.fit(Xt, yt, verbose=False)
         models.append(("xgboost", xgb_clf))
+        print("[train] XGBoost done.")
 
         # LightGBM
         import lightgbm as lgb

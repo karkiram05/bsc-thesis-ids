@@ -167,7 +167,7 @@ def exp1_near_duplicate_sensitivity(df: pd.DataFrame) -> None:
         delta = f - b
         ax.text(i, max(b, f) + 0.002, f"Δ={delta:+.3f}", ha="center", fontsize=9)
     fig.tight_layout()
-    fig.savefig(out / "figure_V1_near_duplicate_sensitivity.png", dpi=150)
+    fig.savefig(out / "figure_V1_near_duplicate_sensitivity.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
 
     print(f"[exp1] wrote {out}")

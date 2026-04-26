@@ -18,7 +18,7 @@ An **unsupervised anomaly-detection** baseline (Isolation Forest, Local Outlier 
 1. **Multi-class classification collapses under temporal evaluation.** XGBoost macro-F1 falls from 0.863 (stratified split) to 0.440 (day split) — a 51 % relative drop on the same data, model, and hyperparameters.
 2. **Binary detection survives.** Random Forest reaches F1 0.859 under the day split (vs 0.996 stratified), making attack-vs-benign the deployable task.
 3. **Random Forest is the most stable detector.** LODO ROC-AUC 0.926 ± 0.053 across the five capture days.
-4. **The model is brittle under adversarial pressure.** A constrained greedy attack evades the undefended Random Forest 24.4 % of the time at a median budget of 0.25σ. A naïve single-round adversarial-training defence fails: clean F1 drops to 0.73 and evasion rises to 26.8 %.
+4. **The model is brittle under adversarial pressure.** A constrained greedy attack evades the undefended Random Forest 24.4 % of the time at a median budget of 0.25σ. A naïve single-round adversarial-training defence fails: clean F1 drops to 0.73 and evasion rises to 25.4 %.
 5. **Model secrecy is not a defence.** 86.4 % of adversarial flows crafted against Random Forest also evade XGBoost.
 
 ---
@@ -118,7 +118,11 @@ Place the raw datasets:
 make full
 ```
 
-This runs every stage end-to-end and writes every output. Total runtime is roughly 30–45 minutes on a modern laptop.
+This runs every stage end-to-end and writes every output. Total runtime is roughly **2-5 hours** on a modern laptop with the lid open. The two slowest stages are `eval_lodo` (20 model fits across 5 folds) and `adversarial` (greedy evasion + 2000-sample adversarial training set generation). Keep the laptop awake — if it sleeps, the wall-clock time stretches even though no real work happens. On macOS, prevent sleep with:
+
+```bash
+caffeinate -i make full
+```
 
 ### Option B — targets one at a time
 
@@ -240,7 +244,7 @@ The model ranking flips between datasets — LightGBM wins UNSW, Random Forest w
 | Setting | Evasion rate | Median L∞ to flip (σ) | Clean F1 |
 |---|---:|---:|---:|
 | Undefended RF | 0.244 | 0.25 | 0.859 |
-| Naïve adversarially-trained RF | 0.268 | — | 0.734 |
+| Naïve adversarially-trained RF | 0.254 | — | 0.732 |
 
 | Transferability | XGBoost evasion rate |
 |---|---:|
