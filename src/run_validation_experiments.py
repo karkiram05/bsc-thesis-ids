@@ -154,7 +154,7 @@ def exp1_near_duplicate_sensitivity(df: pd.DataFrame) -> None:
     models = table["Model"].tolist()
     x = np.arange(len(models))
     w = 0.35
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(8, 5), constrained_layout=True)
     ax.bar(x - w / 2, table["Baseline Macro-F1"], w, label="Baseline", color="#4C72B0")
     ax.bar(x + w / 2, table["Filtered Macro-F1"], w, label="Near-dup filtered", color="#DD8452")
     ax.set_ylabel("Macro F1")
@@ -166,7 +166,6 @@ def exp1_near_duplicate_sensitivity(df: pd.DataFrame) -> None:
     for i, (b, f) in enumerate(zip(table["Baseline Macro-F1"], table["Filtered Macro-F1"])):
         delta = f - b
         ax.text(i, max(b, f) + 0.002, f"Δ={delta:+.3f}", ha="center", fontsize=9)
-    fig.tight_layout()
     fig.savefig(out / "figure_V1_near_duplicate_sensitivity.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
 
