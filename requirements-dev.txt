@@ -1,0 +1,11 @@
+# Development / interactive tooling.
+# Install with: pip install -r requirements-dev.txt
+# (assumes the runtime requirements are already installed)
+
+-r requirements.txt
+
+# JupyterLab + notebook stack — only needed for ad-hoc exploration,
+# not for running the main pipeline (`make full`).
+jupyterlab>=4.0
+ipykernel>=6.0
+ipywidgets>=8.0
