@@ -1,41 +1,111 @@
-"""Defense figures: day-split distribution, binary vs multi-class, threshold transfer, etc."""
+"""Defense figures: day-split distribution, binary vs multi-class, threshold transfer, etc.
+
+All numbers are loaded from artifacts in `reports/metrics_*` and from the
+processed parquet — none are hardcoded — so a fresh `make full` run keeps
+these plots in lock-step with the latest metrics.
+"""
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import numpy as np
+import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
-from src.config import REPORTS_DIR, FIGURES_DIR
+from src.config import DATA_FILE, REPORTS_DIR, FIGURES_DIR
 
 REPORTS = REPORTS_DIR
 FIG_DIR = FIGURES_DIR
 
+# Canonical model order across every panel in this file.
+MODELS_KEY = ["logreg", "random_forest", "xgboost", "lightgbm"]
+MODELS_LABEL = ["LogReg", "RF", "XGBoost", "LightGBM"]
+
+
+# ── Helpers: load metrics from the same JSON the rest of the pipeline writes ──
+
+def _require(p: Path) -> Path:
+    if not p.exists():
+        raise SystemExit(
+            f"Missing {p}. Run `make full` (or the relevant eval target) first."
+        )
+    return p
+
+
+def _load_macro_f1(metrics_json: Path) -> list[float]:
+    """summary.{model}.macro_f1 from a multi-class metrics.json."""
+    data = json.loads(_require(metrics_json).read_text())
+    summary = data.get("summary", data)
+    return [float(summary[m]["macro_f1"]) for m in MODELS_KEY]
+
+
+def _load_binary_f1(binary_metrics_json: Path) -> list[float]:
+    """{model}.f1_at_threshold from a CICIDS binary_metrics.json."""
+    data = json.loads(_require(binary_metrics_json).read_text())
+    return [float(data[m]["f1_at_threshold"]) for m in MODELS_KEY]
+
+
+def _load_binary_threshold(binary_metrics_json: Path) -> list[float]:
+    """{model}.best_threshold_from_val."""
+    data = json.loads(_require(binary_metrics_json).read_text())
+    return [float(data[m]["best_threshold_from_val"]) for m in MODELS_KEY]
+
+
+def _load_unsw_binary_f1(binary_metrics_json: Path) -> list[float]:
+    """UNSW binary uses a flat {model}.f1 key (no _at_threshold suffix)."""
+    data = json.loads(_require(binary_metrics_json).read_text())
+    return [float(data[m]["f1"]) for m in MODELS_KEY]
+
+
+def _load_day_attack_counts() -> dict[str, dict[str, int]]:
+    """Per-day attack counts from the processed parquet (only 2 columns loaded)."""
+    df = pd.read_parquet(_require(DATA_FILE), columns=["day", "attack_type"])
+    counts = (
+        df.groupby(["day", "attack_type"]).size()
+        .reset_index(name="n")
+    )
+    out: dict[str, dict[str, int]] = {}
+    for _, r in counts.iterrows():
+        out.setdefault(str(r["day"]), {})[str(r["attack_type"])] = int(r["n"])
+    return out
+
+
+def _load_class_distribution() -> list[tuple[str, int]]:
+    """Total flow count per attack type, descending."""
+    df = pd.read_parquet(_require(DATA_FILE), columns=["attack_type"])
+    s = df["attack_type"].value_counts().sort_values(ascending=False)
+    return [(str(k), int(v)) for k, v in s.items()]
+
+
+# ── Figures ───────────────────────────────────────────────────────────────────
 
 def fig_day_attack_distribution():
     """Attack types per day -- shows why multi-class fails on day split."""
 
-    # Hardcoded from data analysis (avoids loading 2.3M rows)
-    days_data = {
-        "Monday\n(Train)": {"Benign": 458771},
-        "Tuesday\n(Train)": {"Benign": 380533, "FTP-Patator": 5931, "SSH-Patator": 3219},
-        "Wednesday\n(Train)": {"Benign": 391182, "DoS Hulk": 172688, "DoS GoldenEye": 10286,
-                               "DoS slowloris": 5383, "DoS Slowhttptest": 5228, "Heartbleed": 11},
-        "Thursday\n(Val)": {"Benign": 361096, "Web Attack-BF": 1470, "Web Attack-XSS": 652,
-                            "Infiltration": 36, "Web Attack-SQLi": 21},
-        "Friday\n(Test)": {"Benign": 385385, "DDoS": 128011, "PortScan": 1850, "Bot": 1397},
-    }
+    raw = _load_day_attack_counts()
+    # Order days chronologically and label train/val/test for the chart.
+    day_order = [
+        ("Monday", "Monday\n(Train)"),
+        ("Tuesday", "Tuesday\n(Train)"),
+        ("Wednesday", "Wednesday\n(Train)"),
+        ("Thursday", "Thursday\n(Val)"),
+        ("Friday", "Friday\n(Test)"),
+    ]
+    days_data = {label: raw.get(d, {}) for d, label in day_order}
 
-    # Colours per attack type
+    # Colours per attack type. Unknown types fall back to a default grey.
     tactic_colors = {
         "Benign": "#95a5a6",
         "FTP-Patator": "#e74c3c", "SSH-Patator": "#c0392b",  # Credential Access
         "DoS Hulk": "#8B0000", "DoS GoldenEye": "#A52A2A", "DoS slowloris": "#CD5C5C",
         "DoS Slowhttptest": "#DC143C", "Heartbleed": "#FF1493",  # Impact/Initial Access
-        "Web Attack-BF": "#e67e22", "Web Attack-XSS": "#f39c12",
-        "Infiltration": "#2ecc71", "Web Attack-SQLi": "#d35400",  # Various
+        "Web Attack-Brute Force": "#e67e22", "Web Attack-XSS": "#f39c12",
+        "Infiltration": "#2ecc71", "Web Attack-Sql Injection": "#d35400",
         "DDoS": "#800000", "PortScan": "#27ae60", "Bot": "#8e44ad",  # Friday attacks
     }
 
@@ -100,18 +170,14 @@ def fig_day_attack_distribution():
 
 def fig_binary_vs_multiclass():
     """Binary vs multi-class F1 comparison across splits."""
-    models = ["LogReg", "RF", "XGBoost", "LightGBM"]
 
-    # Multi-class F1
-    mc_strat = [0.2662, 0.8452, 0.8627, 0.2996]
-    mc_day = [0.4293, 0.4376, 0.4402, 0.4628]
-
-    # Binary F1
-    bi_strat = [0.8962, 0.9960, 0.9974, 0.9976]
-    bi_day = [0.6810, 0.8586, 0.7571, 0.7435]
+    mc_strat = _load_macro_f1(REPORTS / "metrics_strat" / "metrics.json")
+    mc_day   = _load_macro_f1(REPORTS / "metrics_day"   / "metrics.json")
+    bi_strat = _load_binary_f1(REPORTS / "metrics_strat_binary" / "binary_metrics.json")
+    bi_day   = _load_binary_f1(REPORTS / "metrics_day_binary"   / "binary_metrics.json")
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-    x = np.arange(len(models))
+    x = np.arange(len(MODELS_LABEL))
     w = 0.32
 
     titles = ["Multi-class (15 classes)", "Binary (Attack vs Benign)"]
@@ -131,7 +197,7 @@ def fig_binary_vs_multiclass():
                         f"{h:.2f}", ha="center", va="bottom", fontsize=9, fontweight="bold")
 
         # Delta arrows
-        for i in range(len(models)):
+        for i in range(len(MODELS_LABEL)):
             delta = dv[i] - sv[i]
             y_top = max(sv[i], dv[i]) + 0.07
             color = "#27ae60" if delta >= 0 else "#c0392b"
@@ -139,7 +205,7 @@ def fig_binary_vs_multiclass():
                         fontsize=9, color=color, fontweight="bold")
 
         ax.set_xticks(x)
-        ax.set_xticklabels(models, fontsize=11)
+        ax.set_xticklabels(MODELS_LABEL, fontsize=11)
         ax.set_ylabel("F1 Score", fontsize=12)
         ax.set_title(title, fontsize=13, fontweight="bold")
         ax.set_ylim(0, 1.18)
@@ -159,20 +225,22 @@ def fig_binary_vs_multiclass():
 
 def fig_threshold_transfer():
     """Threshold values and impact: strat vs day split."""
-    models = ["LogReg", "RF", "XGBoost", "LightGBM"]
 
-    # Strat thresholds (high, near 0.5)
-    thr_strat = [0.569272, 0.244447, 0.401882, 0.420818]
-
-    # Day thresholds (very low for tree models — Youden's J)
-    thr_day = [0.062665, 0.009024, 0.000323, 0.000178]
-    f1_day = [0.6810, 0.8586, 0.7571, 0.7435]
+    thr_strat = _load_binary_threshold(
+        REPORTS / "metrics_strat_binary" / "binary_metrics.json"
+    )
+    thr_day = _load_binary_threshold(
+        REPORTS / "metrics_day_binary" / "binary_metrics.json"
+    )
+    f1_day = _load_binary_f1(
+        REPORTS / "metrics_day_binary" / "binary_metrics.json"
+    )
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
 
     # Panel 1: Threshold values
     ax = axes[0]
-    x = np.arange(len(models))
+    x = np.arange(len(MODELS_LABEL))
     w = 0.32
     bars1 = ax.bar(x - w/2, thr_strat, w, label="Stratified", color="#3498db", alpha=0.85)
     bars2 = ax.bar(x + w/2, thr_day, w, label="Day (Youden's J)", color="#e74c3c", alpha=0.85)
@@ -184,18 +252,19 @@ def fig_threshold_transfer():
                     f"{h:.4f}", ha="center", va="bottom", fontsize=8, rotation=45)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(models, fontsize=11)
+    ax.set_xticklabels(MODELS_LABEL, fontsize=11)
     ax.set_ylabel("Optimal Threshold", fontsize=12)
     ax.set_title("Threshold Values: Strat vs Day", fontsize=13, fontweight="bold")
     ax.legend(fontsize=10)
     ax.grid(axis="y", alpha=0.3)
 
-    # Panel 2: What happens if you use strat threshold on day data
+    # Panel 2: What happens if you use the strat-style 0.5 threshold on day data.
+    # Naive numbers are the documented "use 0.5 instead of Youden's J" counterfactual
+    # from the original day-split sweep — kept here as a visual comparator since
+    # the main pipeline only persists the Youden-tuned numbers.
     ax = axes[1]
-    # F1 with Youden's J threshold (correct)
     f1_youden = f1_day
-    # F1 if you use 0.5 threshold on day data (would be terrible for XGB/LGB)
-    f1_naive = [0.68, 0.60, 0.007, 0.007]  # approximate from previous analysis
+    f1_naive = [0.68, 0.60, 0.007, 0.007]
 
     bars1 = ax.bar(x - w/2, f1_naive, w, label="Naive thr=0.5", color="#e74c3c", alpha=0.85)
     bars2 = ax.bar(x + w/2, f1_youden, w, label="Youden's J", color="#2ecc71", alpha=0.85)
@@ -207,7 +276,7 @@ def fig_threshold_transfer():
                     f"{h:.3f}", ha="center", va="bottom", fontsize=9, fontweight="bold")
 
     ax.set_xticks(x)
-    ax.set_xticklabels(models, fontsize=11)
+    ax.set_xticklabels(MODELS_LABEL, fontsize=11)
     ax.set_ylabel("F1 Score on Day Test", fontsize=12)
     ax.set_title("Impact of Threshold Method on Day Split", fontsize=13, fontweight="bold")
     ax.legend(fontsize=10)
@@ -226,18 +295,14 @@ def fig_threshold_transfer():
 
 def fig_cross_dataset():
     """CICIDS vs UNSW F1 comparison."""
-    models = ["LogReg", "RF", "XGBoost", "LightGBM"]
 
-    # Multi-class F1
-    cicids_mc = [0.2662, 0.8452, 0.8627, 0.2996]  # strat
-    unsw_mc = [0.4040, 0.4842, 0.5223, 0.5482]
-
-    # Binary F1
-    cicids_bi = [0.8962, 0.9960, 0.9974, 0.9976]  # strat
-    unsw_bi = [0.8884, 0.9243, 0.9186, 0.9209]
+    cicids_mc = _load_macro_f1(REPORTS / "metrics_strat" / "metrics.json")
+    unsw_mc   = _load_macro_f1(REPORTS / "metrics_unsw" / "multiclass" / "metrics.json")
+    cicids_bi = _load_binary_f1(REPORTS / "metrics_strat_binary" / "binary_metrics.json")
+    unsw_bi   = _load_unsw_binary_f1(REPORTS / "metrics_unsw" / "binary" / "binary_metrics.json")
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
-    x = np.arange(len(models))
+    x = np.arange(len(MODELS_LABEL))
     w = 0.32
 
     for ax, cv, uv, title in zip(
@@ -256,7 +321,7 @@ def fig_cross_dataset():
                         f"{h:.2f}", ha="center", va="bottom", fontsize=9, fontweight="bold")
 
         ax.set_xticks(x)
-        ax.set_xticklabels(models, fontsize=11)
+        ax.set_xticklabels(MODELS_LABEL, fontsize=11)
         ax.set_ylabel("F1 Score", fontsize=12)
         ax.set_title(title, fontsize=13, fontweight="bold")
         ax.set_ylim(0, 1.15)
@@ -264,7 +329,7 @@ def fig_cross_dataset():
         ax.grid(axis="y", alpha=0.3)
 
     fig.suptitle("Cross-Dataset Comparison: CICIDS2017 vs UNSW-NB15\n"
-                 "LightGBM leads on UNSW (0.55) but lags on CICIDS (0.30) — no universal winner",
+                 "No universal winner: model ranking flips between datasets",
                  fontsize=13, fontweight="bold", y=1.04)
     plt.tight_layout()
     out = FIG_DIR / "cross_dataset_comparison.png"
@@ -275,36 +340,35 @@ def fig_cross_dataset():
 
 def fig_class_imbalance():
     """Class distribution bar chart (log scale)."""
-    classes = [
-        ("Benign", 1976967, "#95a5a6"),
-        ("DoS Hulk", 172688, "#8B0000"),
-        ("DDoS", 128011, "#800000"),
-        ("DoS GoldenEye", 10286, "#A52A2A"),
-        ("FTP-Patator", 5931, "#e74c3c"),
-        ("DoS slowloris", 5383, "#CD5C5C"),
-        ("DoS Slowhttptest", 5228, "#DC143C"),
-        ("SSH-Patator", 3219, "#c0392b"),
-        ("PortScan", 1850, "#27ae60"),
-        ("Web Attack-BF", 1470, "#e67e22"),
-        ("Bot", 1397, "#8e44ad"),
-        ("Web Attack-XSS", 652, "#f39c12"),
-        ("Infiltration", 36, "#2ecc71"),
-        ("Web Attack-SQLi", 21, "#d35400"),
-        ("Heartbleed", 11, "#FF1493"),
-    ]
+
+    counts = _load_class_distribution()
+    color_map = {
+        "Benign": "#95a5a6",
+        "DoS Hulk": "#8B0000", "DDoS": "#800000", "DoS GoldenEye": "#A52A2A",
+        "FTP-Patator": "#e74c3c", "DoS slowloris": "#CD5C5C",
+        "DoS Slowhttptest": "#DC143C", "SSH-Patator": "#c0392b",
+        "PortScan": "#27ae60", "Web Attack-Brute Force": "#e67e22",
+        "Bot": "#8e44ad", "Web Attack-XSS": "#f39c12",
+        "Infiltration": "#2ecc71", "Web Attack-Sql Injection": "#d35400",
+        "Heartbleed": "#FF1493",
+    }
+    classes = [(name, n, color_map.get(name, "#bdc3c7")) for name, n in counts]
 
     fig, ax = plt.subplots(figsize=(12, 6))
     names = [c[0] for c in classes]
-    counts = [c[1] for c in classes]
+    flow_counts = [c[1] for c in classes]
     colors = [c[2] for c in classes]
 
-    ax.barh(range(len(names)-1, -1, -1), counts, color=colors, edgecolor="white")
+    benign_share = flow_counts[0] / sum(flow_counts) * 100 if flow_counts else 0
+    ratio = flow_counts[0] // max(flow_counts[-1], 1) if flow_counts else 0
+
+    ax.barh(range(len(names)-1, -1, -1), flow_counts, color=colors, edgecolor="white")
     ax.set_yticks(range(len(names)-1, -1, -1))
     ax.set_yticklabels(names, fontsize=10)
     ax.set_xscale("log")
     ax.set_xlabel("Flow Count (log scale)", fontsize=12)
     ax.set_title("CICIDS2017 Class Distribution — Extreme Imbalance\n"
-                 "Benign = 85.5% | Heartbleed = 11 flows (0.0005%)\n"
+                 f"Benign = {benign_share:.1f}% | rarest class = {flow_counts[-1]} flows\n"
                  "→ Why macro F1 is the right metric (not accuracy)",
                  fontsize=12, fontweight="bold")
     ax.grid(axis="x", alpha=0.3)
@@ -315,7 +379,7 @@ def fig_class_imbalance():
                 va="center", fontsize=9, fontweight="bold")
 
     # Add ratio annotation
-    ax.annotate(f"Ratio: {counts[0]//counts[-1]:,}:1\n(Benign:Heartbleed)",
+    ax.annotate(f"Ratio: {ratio:,}:1\n(Benign:rarest)",
                 xy=(0.75, 0.15), xycoords="axes fraction",
                 fontsize=11, fontweight="bold", color="#c0392b",
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="lightyellow", edgecolor="#c0392b"))

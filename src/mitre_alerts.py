@@ -94,7 +94,8 @@ def main() -> None:
         raise SystemExit(f"Missing {pred_path}. Run: python -m src.eval")
 
     pred_df = pd.read_csv(pred_path)
-    unique_pred = sorted(pred_df["pred_label"].unique().tolist())
+    unique_pred = sorted(p for p in pred_df["pred_label"].unique().tolist()
+                         if p != "__unseen__")
 
     alerts = []
     unmapped = []

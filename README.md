@@ -39,7 +39,7 @@ bsc-thesis-ids/
 │   ├── binary_day/                 # binary models, day split
 │   └── unsw/                       # UNSW-NB15 models (multi-class + binary)
 ├── reports/
-│   ├── figures/                    # 30 PNGs: confusion matrix, SHAP, ROC, calibration, etc.
+│   ├── figures/                    # all PNGs: confusion matrix, SHAP, ROC, calibration, etc.
 │   ├── traffic_analysis/           # security-engineering documents and plots
 │   ├── metrics_strat/              # multi-class metrics, stratified split
 │   ├── metrics_day/                # multi-class metrics, day split
@@ -276,13 +276,13 @@ Single-round adversarial training **fails as a defence** — both clean F1 and e
 | `reports/operating_points/operating_points.md` | F1-optimal vs FPR-constrained thresholds |
 | `reports/lodo/lodo_summary.md` | per-fold LODO results |
 | `reports/adversarial/adversarial_results.md` | evasion, transferability, top features |
-| `reports/anomaly/anomaly_results.md` | Isolation Forest / LOF baselines |
-| `reports/benchmark/benchmark.md` | inference latency / throughput per model |
+| `reports/anomaly/anomaly_metrics.md` | Isolation Forest / LOF baselines |
+| `reports/benchmark/inference_latency.md` | inference latency / throughput per model |
 | `reports/validation/exp1/`, `exp2/`, `exp3/` | V1 near-dup, V2 split policy, V3 LODO sensitivity |
 | `reports/hyperparameter_table.md` | full hyperparameter spec |
 | `reports/leakage_check.md` | leakage audit |
 | `reports/sanity_check.md` | post-prepare data sanity |
-| `reports/figures/` | 30 PNGs (confusion matrix, SHAP, ROC, calibration, adversarial robustness, etc.) |
+| `reports/figures/` | all PNGs (confusion matrix, SHAP, ROC, calibration, adversarial robustness, etc.) |
 | `reports/traffic_analysis/` | per-attack flow stats, Sigma rules, MITRE tactic profile, SOC playbook, feature separability |
 | `reports/alerts_strat/`, `alerts_day/` | MITRE ATT&CK alerts in CSV + JSON |
 
@@ -334,19 +334,9 @@ Near-duplicate audit found ~28 k flow groups crossing the day-split boundary and
 
 ## Dependencies
 
-```
-pandas
-numpy
-scikit-learn
-xgboost>=2.0.0
-lightgbm
-shap
-joblib
-matplotlib
-pyarrow
-```
+Core runtime: `pandas`, `numpy`, `scikit-learn`, `xgboost>=2.0`, `lightgbm`, `shap`, `joblib`, `matplotlib`, `pyarrow`, `scipy`.
 
-Install with `pip install -r requirements.txt`.
+Install with `pip install -r requirements.txt`. JupyterLab and other notebook-only tooling lives in `requirements-dev.txt` and is not needed to run `make full`.
 
 ---
 

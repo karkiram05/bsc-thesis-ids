@@ -59,9 +59,12 @@ def _train_eval_multiclass(Xt, yt, Xs, ys, n_classes):
             n_estimators=200, max_depth=8, learning_rate=0.1,
             eval_metric="mlogloss", random_state=RNG, n_jobs=-1, verbosity=0,
         ),
+        # LightGBM hyperparameters mirror src/train.py:123 so V1/V2 actually
+        # validate the main pipeline rather than a different model.
         "lightgbm": lgb.LGBMClassifier(
-            n_estimators=200, max_depth=12, learning_rate=0.1,
-            is_unbalance=True, random_state=RNG, n_jobs=-1, verbose=-1,
+            n_estimators=200, max_depth=8, learning_rate=0.1,
+            num_leaves=63, min_child_samples=20,
+            random_state=RNG, n_jobs=-1, verbose=-1,
         ),
     }
 

@@ -16,11 +16,12 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 
 from src.config import DATA_FILE, MODELS_DIR, REPORTS_DIR, SPLIT_COL_DAY, feature_cols
+from src.config import RNG as SEED
 
 sys.stdout.reconfigure(line_buffering=True)
 
 
-RNG = np.random.default_rng(42)
+RNG = np.random.default_rng(SEED)
 N_ATTACK_SAMPLES = 500         # attack flows to try
 N_TRAIN_AUG = 2000             # adv flows added to train
 T_STEPS = 15                   # max tries per flow
@@ -211,7 +212,7 @@ def main() -> None:
     print(f"retraining RF on augmented set: {X_aug.shape[0]:,} rows...")
     rf_def = RandomForestClassifier(
         n_estimators=150, max_depth=24, class_weight="balanced_subsample",
-        n_jobs=-1, random_state=42,
+        n_jobs=-1, random_state=SEED,
     )
     t0 = time.time()
     rf_def.fit(X_aug, y_aug)

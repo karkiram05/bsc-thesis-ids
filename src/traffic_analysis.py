@@ -9,7 +9,7 @@ import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_FILE, REPORTS_DIR
+from src.config import DATA_FILE, REPORTS_DIR, RNG
 
 OUT_DIR = REPORTS_DIR / "traffic_analysis"
 FIG_DIR = OUT_DIR / "figures"
@@ -911,7 +911,7 @@ def plot_flow_duration(df: pd.DataFrame) -> None:
         sub = sub.replace([np.inf, -np.inf], np.nan).dropna()
         sub = sub[sub > 0]
         if len(sub) > 10:
-            data.append(sub.sample(min(5000, len(sub)), random_state=42).values)
+            data.append(sub.sample(min(5000, len(sub)), random_state=RNG).values)
             labels.append(attack)
 
     if not data:

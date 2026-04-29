@@ -1,7 +1,7 @@
 .PHONY: data train eval report all clean leakage-check eval-split-compare sanity
 .PHONY: unsw-data unsw-train unsw-eval unsw-all
 .PHONY: binary binary-strat binary-day lodo validation
-.PHONY: figures shap-mcnemar defense-figures extra-figures
+.PHONY: figures shap-mcnemar defense-figures extra-figures traffic
 .PHONY: benchmark bootstrap operating-points anomaly adversarial full
 
 PY ?= python
@@ -107,11 +107,10 @@ full: data sanity leakage-check
 	$(MAKE) unsw-all
 	$(PY) -m src.mitre_alerts --metrics-dir reports/metrics_strat --out-dir reports/alerts_strat
 	$(PY) -m src.mitre_alerts --metrics-dir reports/metrics_day   --out-dir reports/alerts_day
-	$(PY) -m src.traffic_analysis
 	$(PY) -m src.report --metrics-dir reports/metrics_strat --alerts-dir reports/alerts_strat
 	$(PY) -m src.eval_split_compare --skip-train
 	$(MAKE) validation
-	$(MAKE) figures
+	$(MAKE) figures   # this target already runs src.traffic_analysis as a sub-step
 	$(MAKE) benchmark
 	$(MAKE) bootstrap
 	$(MAKE) operating-points
