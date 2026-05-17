@@ -48,7 +48,7 @@ def main() -> None:
     lines.append(f"- **day**: {has_day}\n")
     lines.append(f"- **source_file**: {has_file}\n")
     if tuple5:
-        lines.append(f"- **5-tuple** (Source IP, Destination IP, Source Port, Destination Port, Protocol): **yes**\n")
+        lines.append("- **5-tuple** (Source IP, Destination IP, Source Port, Destination Port, Protocol): **yes**\n")
     else:
         lines.append(
             "- **5-tuple** (Source IP, Destination IP, Source Port, Destination Port, Protocol): **no** "

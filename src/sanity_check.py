@@ -59,7 +59,7 @@ def main() -> None:
     # --- 5. Leakage columns ---
     present_leak = [c for c in LEAKAGE_COLUMNS if c in df.columns]
     dropped_leak = [c for c in LEAKAGE_COLUMNS if c not in df.columns]
-    lines.append(f"\n## Leakage Columns\n\n"
+    lines.append("\n## Leakage Columns\n\n"
                  f"- Expected to be dropped: {sorted(LEAKAGE_COLUMNS)}\n"
                  f"- Still present in data: {present_leak}\n"
                  f"- Confirmed dropped: {dropped_leak}\n")
@@ -69,7 +69,7 @@ def main() -> None:
         print(f"[leakage] All {len(LEAKAGE_COLUMNS)} leakage columns confirmed absent")
 
     # --- 6. Class distribution (overall) ---
-    lines.append(f"\n## Attack Type Distribution (Overall)\n\n")
+    lines.append("\n## Attack Type Distribution (Overall)\n\n")
     dist = _class_dist(df["attack_type"])
     lines.append(dist.to_markdown() + "\n")
     print(f"[classes] {df['attack_type'].nunique()} unique attack types")
@@ -109,7 +109,7 @@ def main() -> None:
 
     # --- 9. Day distribution ---
     if "day" in df.columns:
-        lines.append(f"\n## Rows per Capture Day\n\n")
+        lines.append("\n## Rows per Capture Day\n\n")
         day_dist = df.groupby("day")["attack_type"].value_counts().unstack(fill_value=0)
         lines.append(day_dist.to_markdown() + "\n")
 

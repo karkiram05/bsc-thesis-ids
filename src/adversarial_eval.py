@@ -85,7 +85,6 @@ def greedy_evade(
     Returns (x_adv, flipped, n_steps_used, per_feature_abs_delta).
     """
     x_adv = x.copy()
-    deltas_used = np.zeros_like(x)
     # step sizes in sigma
     mags = np.array([-2.0, -1.0, -0.5, -0.25, 0.25, 0.5, 1.0, 2.0][:k_candidates])
     for step in range(t_steps):

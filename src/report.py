@@ -160,7 +160,7 @@ def plot_confusion_matrix(cm: np.ndarray, labels: list[str], fdir: Path, model: 
                 val = data[i, j]
                 if val == 0:
                     continue
-                text = f"{val:.2f}" if fmt == ".2f" else f"{int(val)}"
+                text = f"{val:.2f}" if fmt == ".2" else f"{int(val)}"
                 color = "white" if val < thresh else BG
                 fontsize = 6 if n > 12 else 7
                 ax.text(j, i, text, ha="center", va="center",
@@ -457,8 +457,8 @@ def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
     day_path   = cross_metrics_path.parent.parent / "metrics_day"   / "metrics.json"
 
     if not strat_path.exists() or not day_path.exists():
-        print(f"[report] crossdataset_delta.png skipped — need both metrics_strat and metrics_day")
-        print(f"         Run: python -m src.train --split day && python -m src.eval --split day")
+        print("[report] crossdataset_delta.png skipped — need both metrics_strat and metrics_day")
+        print("         Run: python -m src.train --split day && python -m src.eval --split day")
         return
 
     m_strat = json.loads(strat_path.read_text()).get("full", {})

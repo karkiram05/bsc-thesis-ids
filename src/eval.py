@@ -314,7 +314,7 @@ def main():
 
     print(f"[eval] wrote {out_dir / 'metrics.json'}")
     print(f"[eval] best model: {best_key} (macro F1={results[best_key]['macro_f1']:.4f})")
-    print(f"[eval] roc_curve_data + pr_curve_data saved in metrics.json (used by report.py)")
+    print("[eval] roc_curve_data + pr_curve_data saved in metrics.json (used by report.py)")
 
 
 if __name__ == "__main__":

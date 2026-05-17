@@ -573,8 +573,7 @@ def section_detection_signatures(df: pd.DataFrame, feat: list[str]) -> str:
     }
 
     for attack, rule in SIGMA_RULES.items():
-        sev_color = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🟢"}.get(rule["severity"], "⚪")
-        lines.append(f"## {attack} — {sev_color} {rule['severity']}\n\n")
+        lines.append(f"## {attack} -- severity {rule['severity']}\n\n")
         lines.append(f"**Rule title**: {rule['title']}\n\n")
         lines.append(f"**Description**: {rule['description']}\n\n")
         lines.append("**Detection conditions**:\n")
@@ -702,8 +701,7 @@ def section_soc_triage_playbook(df: pd.DataFrame) -> str:
         attacks_in_sev = [a for a, s in SEVERITY_MAP.items() if s == sev]
         if not attacks_in_sev:
             continue
-        sev_emoji = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🟢"}[sev]
-        lines.append(f"## {sev_emoji} {sev} Severity Alerts\n\n")
+        lines.append(f"## {sev} Severity Alerts\n\n")
 
         for attack in attacks_in_sev:
             m = _get_mitre(attack)
@@ -723,10 +721,10 @@ def section_soc_triage_playbook(df: pd.DataFrame) -> str:
     lines.append("## Escalation Matrix\n\n")
     lines.append("| Alert Severity | Response Time | First Action | Escalate To |\n")
     lines.append("|---------------|--------------|--------------|-------------|\n")
-    lines.append("| 🔴 CRITICAL | Immediately | Isolate host / block IP | L3 + management |\n")
-    lines.append("| 🟠 HIGH | Within 15 min | Block source IP, investigate | L2/L3 analyst |\n")
-    lines.append("| 🟡 MEDIUM | Within 1 hour | Log and investigate | L2 analyst |\n")
-    lines.append("| 🟢 LOW | Within 4 hours | Review in next shift | L1 analyst |\n")
+    lines.append("| CRITICAL | Immediately | Isolate host / block IP | L3 + management |\n")
+    lines.append("| HIGH | Within 15 min | Block source IP, investigate | L2/L3 analyst |\n")
+    lines.append("| MEDIUM | Within 1 hour | Log and investigate | L2 analyst |\n")
+    lines.append("| LOW | Within 4 hours | Review in next shift | L1 analyst |\n")
     lines.append("\n")
 
     return "".join(lines)
@@ -963,27 +961,27 @@ def main() -> None:
     print("[traffic_analysis] writing flow statistics ...")
     sec1 = section_flow_statistics(df, feat)
     (OUT_DIR / "flow_statistics.md").write_text(sec1, encoding="utf-8")
-    print(f"[traffic_analysis] saved flow_statistics.md")
+    print("[traffic_analysis] saved flow_statistics.md")
 
     print("[traffic_analysis] writing detection signatures ...")
     sec2 = section_detection_signatures(df, feat)
     (OUT_DIR / "detection_signatures.md").write_text(sec2, encoding="utf-8")
-    print(f"[traffic_analysis] saved detection_signatures.md")
+    print("[traffic_analysis] saved detection_signatures.md")
 
     print("[traffic_analysis] writing MITRE tactic profile ...")
     sec3 = section_mitre_tactic_profile(df)
     (OUT_DIR / "mitre_tactic_profile.md").write_text(sec3, encoding="utf-8")
-    print(f"[traffic_analysis] saved mitre_tactic_profile.md")
+    print("[traffic_analysis] saved mitre_tactic_profile.md")
 
     print("[traffic_analysis] writing SOC triage playbook ...")
     sec4 = section_soc_triage_playbook(df)
     (OUT_DIR / "soc_triage_playbook.md").write_text(sec4, encoding="utf-8")
-    print(f"[traffic_analysis] saved soc_triage_playbook.md")
+    print("[traffic_analysis] saved soc_triage_playbook.md")
 
     print("[traffic_analysis] writing feature separability ...")
     sec5 = section_feature_separability(df, feat)
     (OUT_DIR / "feature_separability.md").write_text(sec5, encoding="utf-8")
-    print(f"[traffic_analysis] saved feature_separability.md")
+    print("[traffic_analysis] saved feature_separability.md")
 
     print(f"\n[traffic_analysis] all outputs in {OUT_DIR}")
     print("Files written:")
