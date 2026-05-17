@@ -1,0 +1,110 @@
+\chapter{Operational Triage: OODA Loop and MITRE ATT\&CK Mapping}
+\label{ch:mitre}
+
+A machine-learning intrusion detector does not run in isolation. It
+feeds into a SOC staffed by human analysts, integrates with a SIEM, and
+is ultimately judged on whether it helps the organisation respond to
+real incidents. This chapter sketches how the artefacts produced by
+this thesis fit into a SOC workflow, organised by Boyd's OODA loop, and
+documents the MITRE ATT\&CK mapping that turns model output into
+playbook-ready alerts.
+
+\section{The OODA Loop in a SOC Workflow}
+
+Boyd's OODA loop --- Observe, Orient, Decide, Act --- describes the
+decision cycle of any adversarial engagement. Whoever cycles faster
+wins. In a SOC context, ``Observe'' is alert ingestion, ``Orient'' is
+enrichment with context (reputation lookups, asset criticality, MITRE
+mapping), ``Decide'' is the analyst's classification of the alert as a
+real incident or a false positive, and ``Act'' is containment and
+remediation.
+
+In this thesis, the trained binary detector lives at the Observe stage:
+the flow extractor ingests packets, the model scores each flow, and an
+alert is emitted when the predicted probability exceeds the Youden-J
+threshold. Inference latency at batch~=~10{,}000 is 3.2~$\mu$s/flow for
+random forest --- well under any operational requirement. The MITRE
+mapping described in Section~\ref{sec:mitre-mapping} provides the Orient
+enrichment that turns the alert from ``probability 0.97'' into a
+structured story: ``FTP-Patator on port 21, T1110.001 Brute Force,
+Credential Access, from external IP X with 1{,}400 similar alerts in the
+last hour''.
+
+The analyst's Decide step --- escalate or close --- shrinks under this
+enrichment because the alert routes directly to a known playbook (T1110
+to credential-stuffing playbook; T1498 to DDoS playbook). The detector
+itself does not Act; it produces evidence for action, which is taken by
+humans or by automation rules tied to playbook outcomes. This separation
+is intentional: a detector with a 21\%--24\% adversarial evasion rate
+cannot be trusted to make blocking decisions autonomously.
+
+The bottleneck in OODA is the analyst's Decide step (microseconds for
+the detector, sub-second for the orchestrator, minutes for the human).
+The MITRE mapping is therefore the single largest force multiplier in
+this design, because it removes the manual ``which playbook applies''
+step.
+
+\section{Mapping Predictions to MITRE ATT\&CK}
+\label{sec:mitre-mapping}
+
+MITRE ATT\&CK~\cite{Strom2018} is the industry-standard taxonomy for
+adversary behaviour, organised by tactic (the ``why'') and technique
+(the ``how''). It is more granular than the Lockheed kill chain (over
+200 techniques) and is maintained as an open knowledge base. SOC
+playbooks are usually keyed to ATT\&CK technique IDs, so mapping
+classifier output to ATT\&CK lets the SOC route alerts to existing
+playbooks rather than triaging each prediction in isolation.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{tactic_distribution.png}
+    \caption{Distribution of CICIDS2017 attack flows across MITRE ATT\&CK
+    tactics. The dataset is dominated by Impact (DDoS, DoS Hulk) and
+    Credential Access (Patator) tactics; Initial Access techniques such
+    as Heartbleed contribute very few flows.}
+    \label{fig:tactic-distribution}
+\end{figure}
+
+The binary random-forest detector produces high-precision alerts on
+T1498 (Network Denial of Service: DDoS and DoS Hulk) and T1046 (Network
+Service Discovery: PortScan). These attack types have distinctive flow
+signatures --- short, bursty, asymmetric for DoS; many short flows to
+many ports for PortScan --- and the detector catches them at low FPR
+with high precision.
+
+Multi-class predictions on the day split are unusable for sub-class
+attribution because the model cannot output a label it has not seen.
+Heartbleed (T1190) has only 11 examples in the dataset; Web Attack
+subtypes are confused with each other. The deployed system therefore
+uses the binary head to flag, and the multi-class head only when the
+predicted class is in-distribution.
+
+\begin{table}[H]
+    \centering
+    \caption{Predicted class to MITRE ATT\&CK mapping.}
+    \label{tab:mitre-mapping}
+    \footnotesize
+    \begin{tabular}{p{4.0cm}p{1.8cm}p{5.0cm}p{3.5cm}}
+        \toprule
+        \textbf{Predicted class} & \textbf{ATT\&CK ID} & \textbf{Technique} & \textbf{Phase} \\
+        \midrule
+        FTP-Patator & T1110.001 & Brute Force: Password Guessing & Credential Access \\
+        SSH-Patator & T1110.001 & Brute Force: Password Guessing & Credential Access \\
+        Web Attack-Brute Force & T1110 & Brute Force & Credential Access \\
+        DDoS & T1498 & Network Denial of Service & Impact \\
+        DoS Hulk / GoldenEye & T1498 & Network Denial of Service & Impact \\
+        DoS Slowhttptest / slowloris & T1499 & Endpoint Denial of Service & Impact \\
+        PortScan / Infiltration & T1046 & Network Service Discovery & Discovery \\
+        Bot & T1071.001 & Application Layer Protocol: Web Protocols & Command and Control \\
+        Heartbleed / SQLi & T1190 & Exploit Public-Facing Application & Initial Access \\
+        Web Attack-XSS & T1059.007 & Command and Scripting: JavaScript & Execution \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The mapping is static for two reasons. First, a learned mapping would
+require richer telemetry than this thesis has access to (logs, EDR,
+identity signals). Second, the static mapping is auditable and portable:
+a successor SOC can read the JSON file, understand exactly why a given
+prediction routes to a given playbook, and modify the mapping if their
+attack catalogue or playbook taxonomy differs.

@@ -1,0 +1,43 @@
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+Network intrusion detection systems (NIDS) increasingly rely on supervised
+machine learning trained on flow-level features. Public benchmarks such as
+CICIDS2017 and UNSW-NB15 routinely report near-perfect macro F1 scores, yet
+it remains unclear whether these numbers reflect operational robustness or
+in-distribution memorisation. This thesis closes that gap empirically. The
+originality is not in the choice of models --- random forest, XGBoost, and
+LightGBM are standard --- but in the combination of honest temporal
+evaluation, score-query black-box adversarial robustness analysis, and
+SOC-grade MITRE ATT\&CK triage in a single reproducible pipeline.
+
+Four classical models --- logistic regression, random forest, XGBoost, and
+LightGBM --- are trained on CICIDS2017 under three evaluation protocols:
+random stratified, day-based temporal, and leave-one-day-out (LODO).
+UNSW-NB15 is used as a cross-dataset validation set under its official
+train/test split. Both multi-class and binary tasks are evaluated. We then
+probe robustness with a score-query black-box greedy evasion attack on the
+binary day-split random forest, quantify cross-model transferability, and
+test naïve adversarial training as a defence. Finally, predicted attack
+types are mapped to MITRE ATT\&CK techniques to produce SOC-actionable
+alerts.
+
+The headline findings are fourfold. First, multi-class macro F1 collapses
+from 0.86 (stratified XGBoost) to 0.44 on the day split, with all four
+models within 0.04 of one another, because Friday's attack classes never
+appear in training. Second, binary detection survives the temporal shift:
+random forest reaches F1 = 0.86 on the day split and ROC-AUC = $0.93 \pm
+0.05$ across LODO folds. Third, the random forest is brittle under
+low-effort evasion (21.4\% of attack flows flipped at $\varepsilon =
+0.25\sigma$, with a looser headline evasion rate of 24.4\% when the attack
+is not capped, on a 19-feature subset), and adversarial examples transfer
+to XGBoost at 86.4\%. Fourth, naïve adversarial training does not help ---
+clean F1 drops from 0.86 to 0.73 while evasion stays at 26.8\%.
+
+We conclude that headline macro-F1 on stratified splits substantially
+overstates deployment readiness under these benchmarks, and recommend
+day-based or LODO splits as the default evaluation protocol for flow-based
+intrusion detection research.
+
+\bigskip
+\noindent\textbf{Keywords:} network intrusion detection; flow-based features; CICIDS2017; UNSW-NB15; random forest; XGBoost; LightGBM; temporal generalisation; adversarial robustness; MITRE ATT\&CK.

@@ -1,0 +1,53 @@
+\chapter{Reproducibility}
+\label{app:reproducibility}
+
+Every numerical result can be reproduced from the original CSV downloads
+in approximately 45--60 minutes on a 2024 MacBook Pro M-series:
+
+\begin{verbatim}
+git clone <repository URL>
+cd bsc-thesis-ids
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+# Place CICIDS2017 CSVs in data/raw/cicids2017/
+# Place UNSW-NB15 CSVs in data/unsw-nb15/raw/
+caffeinate -i make full     # macOS; on Linux use systemd-inhibit
+\end{verbatim}
+
+The \texttt{make full} target chains every step of the pipeline: data
+preparation, sanity checks, training under both split policies, binary
+training, evaluation, LODO cross-validation, UNSW training and
+evaluation, MITRE mapping, traffic analysis, figure generation,
+inference benchmarking, bootstrap confidence intervals, operating
+points, anomaly detection, and adversarial evaluation. Individual
+targets can be run in isolation.
+
+The random seed is set to 42 throughout. Tree ensembles trained with
+\texttt{n\_jobs=-1} introduce approximately 1\% F1 drift between runs
+because of non-deterministic thread scheduling at leaf-split time.
+Numbers in this thesis come from a single canonical run validated
+against a second run to confirm the qualitative conclusions hold under
+the drift.
+
+\paragraph{Near-duplicate filtering sensitivity.}
+A sensitivity study confirms that macro F1 on the binary day task
+changes by less than 0.01 across all four models when near-duplicates
+are filtered. This result should be read alongside the leakage-check
+report, which flags many near-duplicate groups that cross the
+train/test boundary in both stratified and day splits. Exact duplicates
+are removed in cleaning; near-duplicates that survive are mostly
+within-class neighbours (similar attack flows from the same campaign)
+rather than benign-versus-attack confusables, so they do not materially
+shift macro F1 on the binary task. A stricter near-duplicate pruning
+would likely change per-class precision/recall and is the kind of
+signal that Pendlebury et al.~\cite{Pendlebury2019} argue should be
+reported explicitly rather than averaged away.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figure_V3_binary_recall_vs_fpr.png}
+    \caption{Recall-versus-FPR sweep for all four binary models on the
+    day test set. The full operating-point curve from which the headline
+    operating points in Table~\ref{tab:operating-points} are drawn.}
+    \label{fig:v3}
+\end{figure}

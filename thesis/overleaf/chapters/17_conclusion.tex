@@ -1,0 +1,68 @@
+\chapter{Conclusion and Future Work}
+\label{ch:conclusion}
+
+\section{Answers to the Research Questions}
+
+\paragraph{RQ1 -- Does flow-based ML generalise across time?}
+The answer depends on the task formulation. Multi-class classification
+does not generalise: macro F1 collapses from 0.86 on the random
+stratified split to 0.44 on the day-based temporal split, with all four
+models within 0.04 of one another. The collapse is structural --- Friday's
+classes are not in training --- and model tuning cannot recover the loss.
+Binary detection, however, does largely generalise: random forest reaches
+F1 = 0.86 on the day split and ROC-AUC = $0.926 \pm 0.053$ across
+leave-one-day-out folds.
+
+\paragraph{RQ2 -- Are flow-based detectors robust to low-effort evasion?}
+No. The undefended random forest flips 21.4\% of attack flows at
+$\varepsilon = 0.25\sigma$ on the perturbable feature subset, with a
+looser headline evasion rate of 24.4\% when the attack is run unbounded,
+and 83.6\% of successful evasions move a single feature (Flow IAT Min).
+Adversarial flows transfer to XGBoost at 86.4\%, so ensemble-based
+defences are ineffective against this kind of attack. Naïve adversarial
+training fails: clean F1 drops from 0.86 to 0.73 while evasion increases
+to 26.8\%.
+
+\paragraph{RQ3 -- Can model output drive triage?}
+Yes, via static MITRE ATT\&CK mapping. The pipeline produces structured
+per-flow alerts annotated with technique ID, kill-chain phase, and a
+one-sentence justification, ready for direct routing to SOC playbooks.
+Sub-class attribution on the day split is unreliable for the same
+structural reason that drives the multi-class collapse, so the deployed
+system defaults to ``unspecified attack'' when the multi-class prediction
+is out-of-distribution.
+
+\section{Future Work}
+
+Five directions stand out. First, cross-dataset LODO --- training on
+CICIDS days and testing on UNSW splits --- would extend the temporal
+generalisation claim across capture environments. Second, the static
+MITRE mapping could be replaced with a learned mapping using richer
+telemetry. Third, a stronger adversarial training defence (PGD with
+curriculum scheduling, balanced augmentation, classifier-rebalanced
+thresholds) would test whether the negative result on naïve adversarial
+training can be overturned with a more careful approach. Fourth,
+streaming evaluation --- deploying as a Kafka consumer with continuous
+concept-drift detection --- would test the deployment artefacts under
+realistic operational load. Fifth, modern tabular and sequence models
+(TabNet, FT-Transformer, LSTM-over-IATs) deserve a careful comparison
+against the tree-ensemble baseline.
+
+\section{Closing Statement}
+
+Flow-based machine learning for intrusion detection works in practice,
+but only when it is evaluated under protocols that respect the temporal
+structure of the data. On the two benchmarks studied here, headline
+numbers from random stratified splits substantially overstate the
+deployment-relevant performance reported under day-based and LODO
+splits. Binary detection is the more credible deployment framing on
+these benchmarks, MITRE-mapped triage is operationally valuable, and
+the entire pipeline is reproducible in 45 to 60 minutes on a laptop.
+The integration --- honest temporal evaluation, adversarial robustness,
+and operational MITRE triage in one reproducible pipeline --- is what
+distinguishes this thesis from a benchmark replay. The unsolved problem
+is adversarial robustness: any deployed detector should assume that a
+determined adversary will eventually evade it, and the right response is
+to combine the machine-learning detector with network-layer mitigations,
+host-based detection, and human analysts in a defence-in-depth
+architecture.

@@ -1,0 +1,113 @@
+\chapter{Multi-Class Classification Results}
+\label{ch:multiclass}
+
+\section{The Generalisation Collapse}
+
+Table~\ref{tab:multiclass-headline} contains the central empirical claim
+of the thesis. On the random stratified split, XGBoost achieves macro
+F1 = 0.86 and random forest follows at 0.84. On the day-based split,
+every tree ensemble collapses to a macro F1 in the 0.43--0.46 range. The
+collapse is uniform across all three tree models, which differ by less
+than 0.04 macro F1 on the day split. The reason: Friday's DDoS, PortScan,
+and Bot classes never appear in Mon--Wed training, so the classifier
+cannot output the correct label for those flows no matter how well it
+is calibrated.
+
+\begin{table}[H]
+    \centering
+    \caption{CICIDS2017 multi-class macro F1 by split policy.}
+    \label{tab:multiclass-headline}
+    \small
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Model} & \textbf{Stratified} & \textbf{Day-based} & \textbf{$\Delta$} \\
+        \midrule
+        LogReg & 0.266 & 0.429 & +0.163 \\
+        Random Forest & 0.845 & 0.438 & $-$0.407 \\
+        XGBoost & 0.863 & 0.440 & $-$0.423 \\
+        LightGBM & 0.300 & 0.463 & +0.163 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\interpretation{The 0.4-point drop for tree ensembles between split
+policies is the single largest signal in this thesis. The published
+numbers reflect in-distribution memorisation, not deployment readiness.}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{generalisation_gap_all_models.png}
+    \caption{Stratified versus day-split macro F1 across all four models.
+    Blue bars are stratified (published-style); red bars are day-based
+    (deployment-style). Every tree ensemble loses around 0.4 macro F1.}
+    \label{fig:gen-gap}
+\end{figure}
+
+Logistic regression behaves differently: its macro F1 actually
+\textit{improves} from 0.27 stratified to 0.43 on the day split. Its
+stratified score was already low because it cannot capture the non-linear
+class boundaries that tree models exploit. On the day split, the unseen
+classes hurt all models equally, but the tree models also lose the
+spurious correlations they had memorised, while logistic regression had
+not learned those correlations to begin with.
+
+\section{Why Multi-Class Collapses: Confusion Analysis}
+
+The day-split confusion matrix shows the failure mode. Friday DDoS flows
+are predominantly predicted as DoS Hulk, the closest seen class in
+feature space. PortScan splits between DoS Hulk and Benign. Bot is
+mostly predicted as Benign, because without seeing C2 traffic in
+training the model cannot distinguish a periodic beacon from background
+process traffic. Every Friday error is structural --- a consequence of a
+label not existing in training rather than a tunable model failure ---
+and it cannot be addressed by additional training on the same days.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{confusion_matrix.png}
+    \caption{Confusion matrices: stratified split (left) versus day split
+    (right) for the best multi-class model. On stratified the diagonal
+    is bright everywhere; on day the Friday rows (DDoS, PortScan, Bot)
+    are entirely off-diagonal.}
+    \label{fig:cm}
+\end{figure}
+
+Per-class F1 on the day split is exactly 0.0 for DDoS, PortScan, and Bot
+across all four models. The 0.44 macro F1 reported above comes entirely
+from the Benign class and the few attack classes that overlap between
+Mon--Wed training and Thu--Fri evaluation.
+
+\section{Feature Importance and Per-Instance Interpretability}
+
+The structural failure of multi-class classification on the day split
+does not invalidate everything that has been learned. The features that
+drive the in-distribution model tell us which flow statistics carry the
+most discriminative power and therefore which features an attacker would
+need to manipulate to evade detection. The XGBoost gain-based importance
+ranks Backward Packet Length Std, Idle Mean, Forward Active Data Packets,
+and Backward Packet Length Mean as the top four features. Server-side
+response statistics carry most of the discriminative power. A
+random-forest permutation-importance check produces a similar ranking,
+which gives us confidence that the signal is real rather than a quirk
+of the gain calculation.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{feature_importance_xgboost.png}
+    \caption{XGBoost gain-based feature importance (top features).}
+    \label{fig:fi-xgb}
+\end{figure}
+
+For per-instance interpretability we use SHAP. The SHAP summary plot for
+the binary random-forest detector shows that small Flow IAT Min values
+push predictions strongly toward the attack class --- exactly the pattern
+an attacker would observe and exploit, as confirmed in
+Chapter~\ref{ch:adversarial}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{shap_summary_rf_binary.png}
+    \caption{SHAP summary plot for the binary RF detector. Each dot is one
+    flow; colour is feature value; position is the SHAP value.}
+    \label{fig:shap-summary}
+\end{figure}

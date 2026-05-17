@@ -1,0 +1,100 @@
+\chapter{Discussion and Limitations}
+\label{ch:discussion}
+
+\section{What Worked}
+
+Binary detection on the day split survives temporal shift better than
+prior expectations. Random forest at F1 = 0.86 with a 6.5\% FPR is the
+deployment-relevant ballpark for organisations that can absorb a
+moderate alert budget --- though production deployment requires
+live-traffic validation, drift monitoring, and the network-layer
+mitigations discussed in Chapter~\ref{ch:adversarial}. The LODO study
+gave a stronger generalisation claim than any single split: ROC-AUC =
+$0.926 \pm 0.053$ across days with very different attack mixes is a
+narrow band that survives genuinely disjoint test scenarios. The MITRE
+ATT\&CK mapping turns probability scores into operational alerts. The
+reproducible pipeline (45--60 minutes, single Makefile target) is a
+real artefact a successor researcher can extend.
+
+\paragraph{Engineering maturity.}
+Three small engineering choices accumulated into the most useful
+property of this work: a deterministic \texttt{random\_state}, a single
+Makefile entry point that runs the whole pipeline end to end, and an
+explicit leakage-check module that fails loudly if the four rate
+features are reintroduced. None of these are research contributions ---
+they are the difference between a thesis a successor researcher can
+extend in an afternoon and one they have to rebuild from scratch.
+
+\section{What Did Not Work}
+
+Multi-class classification on the day split. Naïve adversarial training.
+Both negative results are informative: the first establishes a hard
+structural limit (the model cannot output a label that does not exist in
+training), the second establishes that off-the-shelf defences fail. The
+adversarial-training failure is consistent with Tramer et
+al.~\cite{Tramer2020}, who documented similar failures across many
+adversarial-training schemes. Reporting these failures rather than
+hiding them is part of the contribution: a successor researcher knows
+what not to waste time on. The naïve defence dropped clean F1 from
+0.859 to 0.734 and increased evasion from 24.4\% to 26.8\% --- the
+worst possible outcome for a defence.
+
+Three findings during the experimental phase surprised the author and
+are worth recording. The most concentrated adversarial brittleness:
+83.6\% of successful evasions move a single feature, Flow IAT Min. The
+narrow LODO ROC-AUC variance for random forest at $\pm 0.053$ across
+genuinely disjoint test scenarios. And the sharp rank reversal between
+CICIDS and UNSW datasets: the CICIDS-best model is not the UNSW-best.
+Headline benchmark numbers measure the dataset they were generated on at
+least as much as they measure the quality of the model.
+
+\section{Threats to Validity}
+
+\paragraph{Dataset limitations.} Both CICIDS2017 and UNSW-NB15 are
+synthetic captures from controlled testbeds. Real enterprise traffic is
+messier: more diverse user behaviour, more encrypted (TLS) traffic, a
+long-tailed distribution of rare attack variants. Numbers obtained on
+synthetic data are likely upper bounds on what would be achievable in
+production. CICIDS2017 also has documented labelling
+errors~\cite{Engelen2021} which we did not relabel.
+
+\paragraph{Evaluation limitations.} LODO is over a single dataset;
+cross-dataset LODO would be stronger. Multi-threaded non-determinism
+introduces approximately 1\% F1 drift between runs. McNemar's test
+assumes independent samples; flows in CICIDS share temporal
+correlations, so the McNemar $p$-values reported in
+Section~\ref{sec:mcnemar} should be read as supporting evidence for the
+model ranking rather than as exact significance levels.
+
+\paragraph{Attacker-model limitations.} The threat model assumes
+score-query black-box access with unlimited queries; many real
+deployments rate-limit query access, which slows but does not change the
+qualitative outcome. The $L^\infty$ budget on a 19-feature subset is a
+simplification. Most importantly, the thesis perturbs feature vectors
+rather than synthesising adversarial network packets. Bridging the
+problem-space gap (Pierazzi et al.~\cite{Pierazzi2020}) is open work.
+
+\paragraph{Deployment limitations.} The MITRE mapping is a static JSON
+file rather than a learned mapping over richer telemetry. There is no
+streaming or online mode. There is no adversary simulator: we assume
+the attacker is greedy and uses a fixed budget, while a sophisticated
+real attacker would adapt their strategy based on observed detector
+behaviour.
+
+\section{Relation to the Published Literature}
+
+The thesis sits in a small but growing literature on honest evaluation
+of ML-based intrusion detection. Engelen et al.~\cite{Engelen2021}
+flagged the leakage rate features in CICIDS2017 --- we replicate the
+finding and drop those columns explicitly, confirming the
+four-percentage-point effect on stratified RF macro F1. Sharafaldin et
+al.~\cite{Sharafaldin2018} reported macro F1 $\approx 0.97$ on CICIDS
+using stratified splits; we reproduce 0.86 (XGBoost) on the same
+protocol after leakage filtering, and 0.44 on the day split. Apruzzese
+et al.~\cite{Apruzzese2019} demonstrated adversarial brittleness for
+flow-based IDS classifiers; the 21.4\% bounded evasion rate
+(24.4\% unbounded headline) reported here is in the same ballpark, with
+the additional finding that the brittleness is concentrated in a single
+feature. The pattern across the references is consistent: the attack
+side of the literature is mature, and the defence side has many more
+unsolved problems than solved ones.

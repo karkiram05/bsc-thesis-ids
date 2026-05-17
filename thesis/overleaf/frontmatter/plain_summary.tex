@@ -1,0 +1,38 @@
+\chapter*{Plain-Language Summary}
+\addcontentsline{toc}{chapter}{Plain-Language Summary}
+
+\paragraph{The problem.}
+Every large organisation --- a bank, a hospital, a university --- runs
+computer networks that move millions of small data packets every minute. A
+few of those packets belong to attackers. The job of a security team is to
+spot the malicious traffic in the flood of normal traffic, which is
+impossible by hand at scale. Security teams therefore deploy automated
+intrusion detection systems (IDS) that read the traffic and raise alerts,
+and increasingly those systems are built with machine learning trained on
+historical labelled examples.
+
+\paragraph{What was found.}
+The most important finding is that the published numbers in many papers
+are too good to be true. Those papers split their data randomly, which
+lets the model see future traffic during training. When the same models
+are tested with a more realistic protocol --- train on Monday to Wednesday,
+test on Friday --- the macro F1 score drops from 0.86 to 0.44 on the
+fifteen-way attack classification task. Macro F1 is a balanced version of
+accuracy that gives each attack class equal weight, so it is the right
+metric for a problem where benign traffic dominates. However, simplifying
+the question to ``is this an attack or not?'' (without naming the specific
+attack) recovers most of the lost performance: random forest still reaches
+an F1 score of 0.86 on the realistic test.
+
+\paragraph{What this means.}
+A company that deploys an IDS based only on high benchmark scores from
+random stratified splits may be disappointed in production. This thesis
+shows the honest baseline, identifies which model (random forest) is most
+reliable for deployment, and shows how to convert raw model output into
+structured alerts tagged with MITRE ATT\&CK technique IDs. The thesis
+also demonstrates that the model can be fooled by an attacker who makes
+small adjustments to packet timing, and that a naïve attempt at fixing
+this vulnerability actually makes things worse. The broader message:
+machine-learning detectors that work in the lab do not always work in the
+real world; the way the system is tested matters more than the model that
+is chosen.

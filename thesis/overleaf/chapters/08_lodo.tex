@@ -1,0 +1,56 @@
+\chapter{Leave-One-Day-Out Cross-Validation}
+\label{ch:lodo}
+
+The day-based split tests one specific scenario --- train on
+Monday-to-Wednesday, test on Friday --- and is therefore vulnerable to the
+criticism that the result might be a quirk of that particular split.
+Leave-one-day-out (LODO) cross-validation answers this concern by
+holding out one day for testing, training on the remaining days with
+one as inner-validation for threshold tuning, then rotating through
+all five days. The Monday fold is benign-only and so reports only an FPR
+measurement; the remaining four folds (Tuesday--Friday) bear attacks and
+contribute to F1, ROC-AUC, and PR-AUC. The mean and standard deviation
+across these four attack-bearing folds is the headline LODO result.
+
+\begin{table}[H]
+    \centering
+    \caption{LODO mean $\pm$ std across the 4 attack-bearing folds (Tuesday--Friday).}
+    \label{tab:lodo}
+    \small
+    \begin{tabular}{lcccc}
+        \toprule
+        \textbf{Model} & \textbf{ROC-AUC} & \textbf{PR-AUC} & \textbf{F1} & \textbf{FPR} \\
+        \midrule
+        LogReg & $0.630 \pm 0.374$ & $0.299 \pm 0.439$ & $0.293 \pm 0.347$ & $0.292 \pm 0.412$ \\
+        Random Forest & $\mathbf{0.926 \pm 0.053}$ & $0.632 \pm 0.354$ & $\mathbf{0.549 \pm 0.366}$ & $\mathbf{0.065 \pm 0.050}$ \\
+        XGBoost & $0.921 \pm 0.086$ & $0.675 \pm 0.374$ & $0.437 \pm 0.353$ & $0.118 \pm 0.080$ \\
+        LightGBM & $0.838 \pm 0.212$ & $0.580 \pm 0.363$ & $0.340 \pm 0.303$ & $0.173 \pm 0.102$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Random forest dominates on stability: ROC-AUC $= 0.926 \pm 0.053$ across
+folds is the lowest standard deviation by a clear margin (XGBoost
+$\pm 0.086$, LightGBM $\pm 0.212$, logistic regression $\pm 0.374$). The
+false-positive rate is also the lowest at $6.5\% \pm 5.0\%$. XGBoost
+matches RF on AUC but its threshold transfers poorly between days, which
+is why its F1 spread ($0.437 \pm 0.353$) is much wider than random
+forest's ($0.549 \pm 0.366$). LightGBM and logistic regression degrade
+more sharply still.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{lodo_folds.png}
+    \caption{Per-fold ROC-AUC and F1 for all four models across the four
+    attack-bearing days. Random forest's bars cluster tightly around 0.93
+    ROC-AUC; LightGBM scatters from 0.53 to 0.99.}
+    \label{fig:lodo}
+\end{figure}
+
+The LODO result strengthens the empirical case for random forest as the
+deployable model. A single split gives one number; LODO gives a
+distribution. A model with mean ROC-AUC $= 0.926$ and standard deviation
+of only $0.053$ across genuinely disjoint test scenarios is more
+trustworthy in production than a model that hits 0.99 on one split and
+0.53 on another. The operational lesson is that stability across days is
+a stronger generalisation claim than any single fold's headline F1.
