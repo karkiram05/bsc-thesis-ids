@@ -1,4 +1,4 @@
-.PHONY: data train eval report all clean leakage-check eval-split-compare sanity
+.PHONY: data train eval report all clean leakage-check sanity
 .PHONY: unsw-data unsw-train unsw-eval unsw-all
 .PHONY: binary binary-strat binary-day lodo validation
 .PHONY: figures shap-mcnemar defense-figures extra-figures traffic
@@ -28,9 +28,6 @@ all: report
 
 leakage-check: data
 	$(PY) -m src.leakage_check
-
-eval-split-compare: data
-	$(PY) -m src.eval_split_compare
 
 # ── Binary models (both splits) ──────────────────────────────────────
 binary-strat: data
@@ -108,7 +105,6 @@ full: data sanity leakage-check
 	$(PY) -m src.mitre_alerts --metrics-dir reports/metrics_strat --out-dir reports/alerts_strat
 	$(PY) -m src.mitre_alerts --metrics-dir reports/metrics_day   --out-dir reports/alerts_day
 	$(PY) -m src.report --metrics-dir reports/metrics_strat --alerts-dir reports/alerts_strat
-	$(PY) -m src.eval_split_compare --skip-train
 	$(MAKE) validation
 	$(MAKE) figures   # this target already runs src.traffic_analysis as a sub-step
 	$(MAKE) benchmark
