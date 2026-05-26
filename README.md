@@ -1,25 +1,26 @@
 # Flow-Based Machine Learning for Network Intrusion Detection with MITRE ATT&CK Mapping
 
-**Bachelor Thesis** - Ram Karki (S236176), General Engineering, DTU, 15 ECTS
+**Bachelor Thesis**: Ram Karki (S236176), General Engineering, DTU, 15 ECTS
 **Supervisor**: Gaurav Choudhary, Department of Applied Mathematics and Computer Science
 
 ---
 
 ## Overview
 
-This project builds and evaluates a reproducible intrusion detection pipeline on two public datasets: **CICIDS2017** (primary) and **UNSW-NB15** (cross-dataset check). Four machine-learning models, Logistic Regression, Random Forest, XGBoost, and LightGBM, are trained for flow-level attack detection (multi-class and binary) under two evaluation protocols (random stratified and strict temporal day-split). The pipeline also runs Leave-One-Day-Out cross-validation, a constrained adversarial-robustness evaluation, and maps every detected attack to MITRE ATT&CK to produce SOC-actionable outputs.
+A reproducible flow-based intrusion detection pipeline on two public datasets: CICIDS2017 (primary) and UNSW-NB15 (cross-dataset check). Four supervised models (Logistic Regression, Random Forest, XGBoost, LightGBM) and two unsupervised baselines (Isolation Forest, Local Outlier Factor) trained for multi-class and binary attack detection, evaluated under three protocols (stratified random split, day-based temporal split, leave-one-day-out cross-validation), with a score-query black-box adversarial study, a Flow IAT Min ablation, a post-processing probability calibration experiment, MITRE ATT&CK mapping for every predicted class, and a live Flask plus Wireshark demo that scores real packets from the host network interface.
 
-An **unsupervised anomaly-detection** baseline (Isolation Forest, Local Outlier Factor) is included to measure how much the supervised approach earns over the label-free reference.
+The contribution is not a new accuracy record. It is an honest end-to-end evaluation that exposes the gap between random-split benchmark numbers and the deployment-relevant numbers a Security Operations Centre would see.
 
 ---
 
 ## Headline Findings
 
-1. **Multi-class classification collapses under temporal evaluation.** XGBoost macro-F1 falls from 0.863 (stratified split) to 0.440 (day split), a 51 % relative drop on the same data, model, and hyperparameters.
-2. **Binary detection survives.** Random Forest reaches F1 0.859 under the day split (vs 0.996 stratified), making attack-vs-benign the deployable task.
-3. **Random Forest is the most stable detector.** LODO ROC-AUC 0.926 ± 0.053 across the five capture days.
-4. **The model is brittle under adversarial pressure.** A constrained greedy attack evades the undefended Random Forest 24.4 % of the time at a median budget of 0.25σ. A naïve single-round adversarial-training defence fails: clean F1 drops to 0.73 and evasion rises to 26.8 %.
-5. **Model secrecy is not a defence.** 86.4 % of adversarial flows crafted against Random Forest also evade XGBoost.
+1. **Multi-class collapses under temporal evaluation.** XGBoost macro F1 falls from 0.86 (stratified) to 0.44 (day-based), a 49 percent relative drop on the same data and hyperparameters, because Friday's DDoS, PortScan, and Bot classes never appear in Monday to Wednesday training.
+2. **Binary detection survives.** Random Forest reaches F1 = 0.86 on the day split (vs 0.996 stratified) and ROC-AUC = 0.926 plus or minus 0.053 across the four attack-bearing LODO folds, the lowest variance of the four models.
+3. **The model is brittle under low-effort adversarial pressure.** A score-query black-box greedy attack flips 20.8 percent of correctly classified attacks under a hard 0.25 sigma budget, 25.6 percent unbounded. 84.4 percent of successful evasions move a single feature (Flow IAT Min); a controlled ablation shows the attack re-concentrates on Forward IAT Min when Flow IAT Min is removed, so the vulnerability is structural to inter-arrival timing rather than feature-specific.
+4. **Model secrecy is not a defence.** 86.8 percent of adversarial flows crafted against Random Forest also evade XGBoost.
+5. **Naive single-shot adversarial training helps modestly.** Evasion drops from 25.6 to 22.2 percent at a 3.2-point clean-F1 cost (0.859 to 0.827). Iterative PGD-AT is identified as future work.
+6. **Post-processing calibration does not transfer across day boundaries.** Platt scaling reduces RF ECE from 0.178 to 0.161, but recall at fixed FPR is unchanged or slightly worse, because the val-to-test mapping does not survive the temporal shift.
 
 ---
 
@@ -36,57 +37,32 @@ bsc-thesis-ids/
 │   ├── baseline_strat/             # multi-class models, stratified split
 │   ├── baseline_day/               # multi-class models, day split
 │   ├── binary_strat/               # binary models, stratified split
-│   ├── binary_day/                 # binary models, day split
-│   └── unsw/                       # UNSW-NB15 models (multi-class + binary)
+│   ├── binary_day/                 # binary models, day split + calibrators
+│   └── unsw/                       # UNSW-NB15 models
 ├── reports/
-│   ├── figures/                    # all PNGs: confusion matrix, SHAP, ROC, calibration, etc.
-│   ├── traffic_analysis/           # security-engineering documents and plots
+│   ├── figures/                    # PNGs: confusion matrix, SHAP, ROC, calibration, etc.
 │   ├── metrics_strat/              # multi-class metrics, stratified split
 │   ├── metrics_day/                # multi-class metrics, day split
 │   ├── metrics_strat_binary/       # binary metrics, stratified split
 │   ├── metrics_day_binary/         # binary metrics, day split
 │   ├── metrics_unsw/               # UNSW-NB15 metrics
 │   ├── lodo/                       # leave-one-day-out cross-validation
-│   ├── adversarial/                # evasion attack, transferability, AT defence results
-│   ├── bootstrap/                  # 95 % CIs for binary metrics
-│   ├── operating_points/           # recall at fixed FPR + ECE calibration
-│   ├── benchmark/                  # inference latency / throughput
-│   ├── anomaly/                    # unsupervised baseline metrics
-│   ├── validation/                 # V1 near-dup / V2 split policy / V3 LODO sensitivity
+│   ├── adversarial/                # evasion, transferability, naive AT, Flow IAT Min ablation
+│   ├── calibration/                # Platt scaling + isotonic regression results
+│   ├── bootstrap/                  # 95 percent CIs for binary metrics
+│   ├── operating_points/           # recall at fixed FPR + ECE
+│   ├── benchmark/                  # inference latency and throughput
+│   ├── anomaly/                    # unsupervised baselines
 │   ├── alerts_strat/               # MITRE ATT&CK alerts, stratified split
 │   ├── alerts_day/                 # MITRE ATT&CK alerts, day split
 │   ├── master_results_table.md     # all CICIDS + UNSW + LODO numbers in one place
 │   ├── statistical_tests.md        # McNemar pairwise comparisons
-│   ├── leakage_check.md            # 5-tuple and feature-target leakage audit
-│   ├── sanity_check.md             # post-prepare data sanity report
-│   ├── hyperparameter_table.md     # full hyperparameter spec
-│   └── run_manifest.json           # seed, git commit, timestamp for reproducibility
-└── src/
-    ├── config.py                       # shared paths, constants, helpers
-    ├── prepare_data.py                 # CICIDS2017 loading, cleaning, splits
-    ├── prepare_unsw.py                 # UNSW-NB15 loading, cleaning, splits
-    ├── sanity_check.py                 # post-prepare sanity (split sizes, balance, leakage)
-    ├── leakage_check.py                # exact and near-duplicate leakage audit
-    ├── train.py                        # multi-class training (LogReg, RF, XGB, LGB)
-    ├── train_binary.py                 # binary training (Benign vs Attack)
-    ├── train_unsw.py                   # UNSW-NB15 training
-    ├── eval.py                         # multi-class evaluation
-    ├── eval_binary.py                  # binary evaluation with threshold tuning
-    ├── eval_unsw.py                    # UNSW-NB15 evaluation
-    ├── eval_lodo.py                    # leave-one-day-out cross-validation
-    ├── run_validation_experiments.py   # V1 / V2 / V3 robustness experiments
-    ├── adversarial_eval.py             # greedy evasion + transferability + adv training
-    ├── mitre_alerts.py                 # CICIDS class → ATT&CK technique mapping
-    ├── mitre_mapping.json              # ATT&CK mapping data
-    ├── traffic_analysis.py             # security-engineering analysis and figures
-    ├── report.py                       # report and figure generation
-    ├── generate_extra_figures.py       # LODO, calibration, generalisation gap
-    ├── generate_defense_figures.py     # day distribution, binary-vs-multi, threshold transfer
-    ├── generate_shap_mcnemar.py        # SHAP + McNemar significance
-    ├── benchmark_inference.py          # inference latency / throughput
-    ├── bootstrap_cis.py                # bootstrap 95 % CIs for binary metrics
-    ├── operating_points.py             # recall at fixed FPR budgets + ECE calibration
-    └── anomaly_detection.py            # unsupervised baselines (Isolation Forest, LOF)
+│   ├── leakage_check.md            # leakage audit
+│   ├── sanity_check.md             # post-prepare sanity report
+│   └── hyperparameter_table.md     # full hyperparameter spec
+├── src/                            # 25 Python modules (training, evaluation, analysis, plots)
+├── demo/                           # Flask SOC console plus Wireshark bridge (see demo/README.md)
+└── thesis/                         # LaTeX sources for the thesis report (overleaf/)
 ```
 
 ---
@@ -103,253 +79,199 @@ pip install -r requirements.txt
 
 Place the raw datasets:
 
-- **CICIDS2017** parquet files in `data/raw/cicids2017/` (download from <https://www.unb.ca/cic/datasets/ids-2017.html>)
-- **UNSW-NB15** CSV files in `data/unsw-nb15/raw/` (download from <https://research.unsw.edu.au/projects/unsw-nb15-dataset>)
+- CICIDS2017 parquet files in `data/raw/cicids2017/`
+- UNSW-NB15 CSV files in `data/unsw-nb15/raw/`
 
 ---
 
 ## Reproducing All Results
 
-### Option A, full pipeline
+### Full pipeline
 
 ```bash
 make full
 ```
 
-This runs every stage end-to-end and writes every output. Total runtime is roughly **2-5 hours** on a modern laptop with the lid open. The two slowest stages are `eval_lodo` (20 model fits across 5 folds) and `adversarial` (greedy evasion + 2000-sample adversarial training set generation). Keep the laptop awake, if it sleeps, the wall-clock time stretches even though no real work happens. On macOS, prevent sleep with:
+Runtime is roughly 2 to 5 hours on a modern laptop. The two slowest stages are `eval_lodo` (20 model fits across 5 folds) and `adversarial` (greedy evasion plus 2000-sample adversarial training set generation). On macOS, prevent the lid sleeping with `caffeinate -i make full`.
+
+### Per-stage targets
 
 ```bash
-caffeinate -i make full
-```
-
-### Option B, targets one at a time
-
-```bash
-make data                # build CICIDS2017 features
+make data                # build CICIDS2017 parquet
 make sanity              # post-prepare sanity report
-make leakage-check       # 5-tuple + feature-target leakage audit
+make leakage-check       # leakage audit
 make train SPLIT=strat   # multi-class training, stratified split
 make train SPLIT=day     # multi-class training, day split
 make eval  SPLIT=strat   # multi-class evaluation
 make eval  SPLIT=day
 make binary              # binary models, both splits
 make lodo                # leave-one-day-out cross-validation
-make unsw-all            # UNSW-NB15 training + evaluation
-make validation          # V1 / V2 / V3 experiments
-make figures             # render all PNGs into reports/figures/
-make benchmark           # inference latency / throughput
-make bootstrap           # 95 % CIs for binary metrics
-make operating-points    # recall at fixed FPR + ECE calibration
-make anomaly             # unsupervised baseline
-make adversarial         # evasion + transferability + adversarial training
+make unsw-all            # UNSW-NB15 training and evaluation
+make figures             # render PNGs
+make benchmark           # inference latency and throughput
+make bootstrap           # 95 percent CIs for binary metrics
+make operating-points    # recall at fixed FPR
+make anomaly             # unsupervised baselines
+make adversarial         # evasion, transferability, naive AT
+make ablation            # Flow IAT Min ablation
+make calibrate           # post-processing Platt and isotonic calibration
 ```
-
----
-
-## Training Process
-
-The training pipeline has three stages.
-
-**Stage 1, Data preparation** (`src/prepare_data.py`):
-1. Read the eight CICIDS CSV files (one per attack day).
-2. Strip whitespace from column names; standardise label casing.
-3. Drop rows with infinite or NaN values (sensor artefacts).
-4. Drop the four leakage-prone rate features (`Flow Bytes/s`, `Flow Packets/s`, `Fwd Packets/s`, `Bwd Packets/s`).
-5. Map raw labels to a 14-class taxonomy.
-6. Deduplicate by 5-tuple + start-time.
-7. Save a single Parquet file with `Day` and `Label` columns.
-
-**Stage 2, Model fitting** (`src/train.py`, `src/train_binary.py`, `src/train_unsw.py`):
-- For each of the four models, fit on the training partition with the hyperparameters in `reports/hyperparameter_table.md`.
-- Tree models train on raw features; LogReg uses a `StandardScaler` pipeline.
-- Saved as joblib pickles in `models/{baseline,binary}_{strat,day}/`.
-
-**Stage 3, Evaluation** (`src/eval.py`, `src/eval_binary.py`):
-- Tune the binary decision threshold on the validation partition using **Youden's J statistic** (prevalence-invariant).
-- Evaluate on the test partition.
-- Report precision, recall, F1, FPR, ROC-AUC, PR-AUC.
-- Bootstrap 95 % CIs (1000 resamples) on every headline number.
-- McNemar's test for pairwise model comparisons.
-
-The **test set is touched exactly once**, no hyperparameter selection uses test feedback.
 
 ---
 
 ## Day-Split Configuration
 
 ```
-Monday    → train   (Benign baseline only)
-Tuesday   → train   (FTP / SSH brute force)
-Wednesday → train   (DoS Slowloris/Slowhttptest, Heartbleed)
-Thursday  → val     (Web Attacks, Infiltration), threshold tuning only
-Friday    → test    (Bot, PortScan, DDoS), held-out evaluation
+Monday    -> train   (Benign only)
+Tuesday   -> train   (FTP and SSH brute force)
+Wednesday -> train   (DoS Slowloris, Slowhttptest, Heartbleed)
+Thursday  -> val     (Web Attacks, Infiltration; threshold tuning only)
+Friday    -> test    (DDoS, PortScan, Bot; held-out evaluation)
 ```
 
-The day split is the honest evaluation. Friday's classes never appear in training, so the model has to actually generalise.
+Friday's classes do not appear in training, so the model has to actually generalise.
 
 ---
 
 ## Key Results
 
-All numbers below come from `reports/master_results_table.md`. F1 is macro-F1 for multi-class and the standard binary F1 for binary detection.
+All numbers from `reports/master_results_table.md`.
 
-### Multi-class, the generalisation collapse
+### Multi-class: the generalisation collapse
 
-| Model | Macro-F1 (stratified) | Macro-F1 (day) | Δ |
+| Model | Stratified macro F1 | Day macro F1 | Delta |
 |---|---:|---:|---:|
 | Logistic Regression | 0.266 | 0.429 | +0.163 |
-| Random Forest | 0.845 | 0.438 | −0.408 |
-| **XGBoost** | **0.863** | **0.440** | **−0.423** |
+| Random Forest | 0.845 | 0.438 | -0.408 |
+| **XGBoost** | **0.863** | **0.440** | **-0.423** |
 | LightGBM | 0.300 | 0.463 | +0.163 |
 
-The collapse is consistent across the well-fitting models (RF, XGBoost). Logistic Regression and LightGBM happen to do *better* on the day split because they were already weak on stratified, they had little to lose.
+### Binary: the deployable task
 
-### Binary, the deployable task
+| Model | F1 (stratified) | F1 (day) | ROC-AUC (day) |
+|---|---:|---:|---:|
+| Logistic Regression | 0.896 | 0.681 | 0.981 |
+| **Random Forest** | **0.996** | **0.859** | **0.940** |
+| XGBoost | 0.997 | 0.757 | 0.972 |
+| LightGBM | 0.998 | 0.744 | 0.957 |
 
-| Model | F1 (stratified) | F1 (day) | ROC-AUC (day) | Δ F1 |
-|---|---:|---:|---:|---:|
-| Logistic Regression | 0.896 | 0.681 | 0.981 | −0.215 |
-| **Random Forest** | **0.996** | **0.859** | **0.940** | **−0.137** |
-| XGBoost | 0.997 | 0.757 | 0.972 | −0.240 |
-| LightGBM | 0.998 | 0.744 | 0.957 | −0.254 |
+### Leave-one-day-out cross-validation (binary, 4 attack-bearing folds, Monday is benign-only)
 
-Random Forest survives the day split with F1 0.859, the strongest binary detector by a clear margin.
-
-### Leave-One-Day-Out cross-validation (binary, mean ± std over 5 folds)
-
-| Model | Macro-F1 | ROC-AUC |
+| Model | F1 | ROC-AUC |
 |---|---:|---:|
 | Logistic Regression | 0.293 | 0.630 |
-| **Random Forest** | **0.549** | **0.926 ± 0.053** |
+| **Random Forest** | **0.549** | **0.926 plus or minus 0.053** |
 | XGBoost | 0.437 | 0.921 |
 | LightGBM | 0.340 | 0.838 |
 
-Random Forest is both highest mean and lowest variance, the most stable detector across days.
+Random Forest has the highest mean and the lowest variance, the most stable detector across days with very different attack mixes.
 
 ### UNSW-NB15 cross-dataset
 
-| Model | Multi-class F1 | Binary F1 | Binary ROC-AUC |
-|---|---:|---:|---:|
-| Logistic Regression | 0.404 | 0.888 | 0.976 |
-| Random Forest | 0.479 | 0.921 | 0.986 |
-| XGBoost | 0.522 | 0.919 | 0.986 |
-| **LightGBM** | **0.548** | 0.921 | 0.986 |
+| Model | Multi-class F1 | Binary F1 |
+|---|---:|---:|
+| Logistic Regression | 0.404 | 0.888 |
+| Random Forest | 0.479 | 0.921 |
+| XGBoost | 0.522 | 0.919 |
+| **LightGBM** | **0.548** | 0.921 |
 
-The model ranking flips between datasets, LightGBM wins UNSW, Random Forest wins CICIDS day-split. There is no universal best model; tune on local traffic before deployment.
+The model ranking flips between datasets. There is no universal best.
 
 ### Adversarial robustness (binary RF, day split, 500 sampled attack flows)
 
-| Setting | Evasion rate | Median L∞ to flip (σ) | Clean F1 |
+| Setting | Evasion rate (unbounded) | Bounded at 0.25 sigma | Clean F1 |
 |---|---:|---:|---:|
-| Undefended RF | 0.244 | 0.25 | 0.859 |
-| Naïve adversarially-trained RF | 0.268 |, | 0.734 |
+| Undefended RF | 0.256 | 0.208 | 0.859 |
+| Naive adversarial-trained RF | 0.222 | 0.220 | 0.827 |
 
-| Transferability | XGBoost evasion rate |
+Transferability: 86.8 percent of RF-adversarial flows also evade XGBoost. Clean attack flows are misclassified by XGBoost at 26 percent. An attacker need not know which model the defender deployed.
+
+Top exploited features in successful evasions:
+
+| Feature | Percent of successful evasions moving this feature |
 |---|---:|
-| Clean attack flows scored by XGBoost | 0.260 |
-| RF-adversarial flows scored by XGBoost | **0.864** |
+| Flow IAT Min | 84.4 |
+| Flow IAT Mean | 21.9 |
+| Flow IAT Max | 14.8 |
+| Flow Duration | 12.5 |
+| Forward IAT Min | 10.2 |
 
-Top exploited features (fraction of successful evasions that moved each one):
+Flow IAT Min ablation (drop the most-exploited feature, retrain, re-attack):
 
-| Feature | % |
-|---|---:|
-| Flow IAT Min | 84 |
-| Flow IAT Mean | 18 |
-| Flow IAT Max | 16 |
-| Fwd IAT Min | 13 |
-| Flow Duration | 9 |
+| Quantity | Original RF | Ablated RF |
+|---|---:|---:|
+| Clean F1 | 0.859 | 0.853 |
+| Unbounded evasion | 0.256 | 0.224 |
+| Top exploited feature | Flow IAT Min (84.4 percent) | Forward IAT Min (87.5 percent) |
 
-Single-round adversarial training **fails as a defence**, both clean F1 and evasion rate get worse. Reproduces the negative result in Madry et al. (2018). Robust adversarial training would need a multi-round PGD-style inner attacker, which is out of scope for this BSc.
+Removing the most-exploited feature does not stop the attack; it re-concentrates on the next timing feature. The vulnerability is structural to inter-arrival timing.
+
+### Post-processing calibration
+
+Platt scaling reduces RF expected calibration error from 0.178 to 0.161, but recall at 0.1 percent FPR stays at 0.621. For XGBoost and LightGBM the operating-point recall drops slightly after calibration because the Thursday-to-Friday probability mapping does not transfer.
 
 ---
 
-## Outputs
+## Live Demo
 
-| Path | Contents |
-|---|---|
-| `reports/master_results_table.md` | every headline F1 / ROC-AUC in one table |
-| `reports/statistical_tests.md` | McNemar p-values for binary day-split |
-| `reports/bootstrap/binary_day_cis.md` | 95 % CIs on binary metrics |
-| `reports/operating_points/operating_points.md` | F1-optimal vs FPR-constrained thresholds |
-| `reports/lodo/lodo_summary.md` | per-fold LODO results |
-| `reports/adversarial/adversarial_results.md` | evasion, transferability, top features |
-| `reports/anomaly/anomaly_metrics.md` | Isolation Forest / LOF baselines |
-| `reports/benchmark/inference_latency.md` | inference latency / throughput per model |
-| `reports/validation/exp1/`, `exp2/`, `exp3/` | V1 near-dup, V2 split policy, V3 LODO sensitivity |
-| `reports/hyperparameter_table.md` | full hyperparameter spec |
-| `reports/leakage_check.md` | leakage audit |
-| `reports/sanity_check.md` | post-prepare data sanity |
-| `reports/figures/` | all PNGs (confusion matrix, SHAP, ROC, calibration, adversarial robustness, etc.) |
-| `reports/traffic_analysis/` | per-attack flow stats, Sigma rules, MITRE tactic profile, SOC playbook, feature separability |
-| `reports/alerts_strat/`, `alerts_day/` | MITRE ATT&CK alerts in CSV + JSON |
+A working Flask SOC console plus a Wireshark live-capture bridge are in the `demo/` directory. Quick start:
+
+```bash
+cd demo
+python app.py                       # browser dashboard at http://127.0.0.1:5050
+DEFENCE_SCAN=1 ./live_capture.sh    # capture, convert, score live packets
+```
+
+See `demo/README.md` for the dashboard documentation and `demo/WIRESHARK.md` for the live-capture playbook including the one-time install steps for tshark, nmap, and the hieulw cicflowmeter fork.
 
 ---
 
 ## MITRE ATT&CK Coverage
 
-All 14 attack classes mapped to ATT&CK techniques across 6 tactics. The flow-only IDS covers timing and volume techniques reliably and is honestly blind to payload-bound techniques.
+All 14 CICIDS attack classes mapped to ATT&CK techniques across 6 tactics.
 
-| Technique | Attack types | Per-class F1 (binary day split) | Coverage |
-|---|---|---|---|
-| T1110 Brute Force | FTP/SSH/Web Brute Force | 0.78, 0.93 | Good |
-| T1499 Endpoint DoS | DoS Hulk, GoldenEye, Slowhttptest, slowloris | 0.96 | Excellent |
-| T1498 Network DoS | DDoS | 0.99 | Excellent |
-| T1046 Network Service Scanning | PortScan | 0.99 | Excellent |
-| T1071 Application Layer Protocol | Bot (C2) | 0.55 | Partial |
-| T1190 Exploit Public-Facing App | XSS, SQL Injection | 0.05, 0.21 | **Flow-blind** (payload) |
-| T1212 Exploitation for Cred Access | Heartbleed | 0.00 | **Flow-blind** (rare class) |
-| T1190 / T1133 | Infiltration | 0.00 | **Blind** |
-
-Honest reporting of blind spots is the whole point of the mapping, the rest of the defence-in-depth stack (WAF, EDR) covers what flow IDS cannot.
+| Technique | Attack types | Coverage |
+|---|---|---|
+| T1110 Brute Force | FTP/SSH/Web Brute Force | Good |
+| T1499 Endpoint DoS | DoS Hulk, GoldenEye, Slowhttptest, slowloris | Excellent |
+| T1498 Network DoS | DDoS | Excellent |
+| T1046 Network Service Scanning | PortScan, Infiltration | Excellent |
+| T1071 Application Layer Protocol | Bot (C2) | Partial |
+| T1190 Exploit Public-Facing App | XSS, SQL Injection, Heartbleed | Flow-blind (payload-bound) |
 
 ---
 
 ## Datasets
 
-**CICIDS2017** (primary), Canadian Institute for Cybersecurity
-~2.3 M flows | 73 features | 14 attack classes + Benign | 85.5 % benign
+**CICIDS2017** (primary): 2.31 million flows, 73 features after leakage filtering, 14 attack classes plus Benign, 74.6 percent benign. Four rate-derived features removed before modelling following Engelen et al. 2021.
 
-Leakage columns dropped before modelling: `Flow Bytes/s`, `Flow Packets/s`, `Fwd Packets/s`, `Bwd Packets/s` (algebraically derived; would allow shortcut learning).
-
-Near-duplicate audit found ~28 k flow groups crossing the day-split boundary and ~26 k crossing the stratified boundary. Documented in `reports/leakage_check.md`.
-
-**UNSW-NB15** (cross-dataset check), UNSW Canberra
-~257 k flows | 196 features after one-hot | 9 attacks + Normal | 36.3 % normal
+**UNSW-NB15** (cross-dataset check): 257 thousand flows, 196 features after one-hot encoding, 9 attacks plus Normal, 36.3 percent normal.
 
 ---
 
-## Methodology Choices
+## Methodology
 
-- **No hyperparameter search.** A small grid was used to find a configuration that is not actively bad. Larger searches over-fit to the validation set.
-- **Youden's J for binary thresholds.** Prevalence-invariant; transfers across train/test more cleanly than F1-optimal thresholds.
-- **Bootstrap CIs everywhere.** 1000 resamples, percentile method.
-- **McNemar for pairwise comparisons.** Settles the question "is this 0.01 F1 difference real?".
-- **Tree models on raw features.** Only LogReg uses a `StandardScaler` pipeline.
-- **`random_state=42`** throughout for determinism.
+- Three split protocols: stratified random (60/16/22), day-based temporal (Mon-Wed train / Thu val / Fri test), and leave-one-day-out cross-validation.
+- Youden's J threshold tuning on validation, prevalence-invariant.
+- Bootstrap 95 percent confidence intervals everywhere, 1000 resamples, percentile method.
+- McNemar's test with Yates continuity correction for pairwise model comparisons.
+- `random_state=42` throughout.
+- Test set is touched exactly once. No hyperparameter selection uses test feedback.
 
 ---
 
 ## Dependencies
 
-Core runtime: `pandas`, `numpy`, `scikit-learn`, `xgboost>=2.0`, `lightgbm`, `shap`, `joblib`, `matplotlib`, `pyarrow`, `scipy`.
+Core runtime: `pandas`, `numpy`, `scikit-learn`, `xgboost`, `lightgbm`, `shap`, `joblib`, `matplotlib`, `pyarrow`, `scipy`, `flask`. Install with `pip install -r requirements.txt`. Notebook tooling lives in `requirements-dev.txt` and is not needed for `make full`.
 
-Install with `pip install -r requirements.txt`. JupyterLab and other notebook-only tooling lives in `requirements-dev.txt` and is not needed to run `make full`.
+For the live capture demo: Wireshark (provides `tshark`), nmap, and the hieulw CICFlowMeter fork (see `demo/WIRESHARK.md`).
 
 ---
 
 ## Reproducibility
 
-- Python 3.12 (tested with 3.12.4)
-- macOS / Linux (Windows not tested)
-- ~4 GB free disk for data + models, ~8 GB RAM recommended
+- Python 3.12, tested with 3.12.4
+- macOS and Linux (Windows not tested)
+- Roughly 4 GB disk and 8 GB RAM
 - All experiments use `random_state=42`
-- `reports/run_manifest.json` records the seed, the git commit, and the run timestamp
-- Re-running the entire pipeline with a different seed reproduces every headline number within ±0.5 % macro-F1
-
----
-
-## Notes
-
-- XGBoost on the day split needs label remapping (saved as `xgboost_label_remap.json`) because training classes are non-contiguous when attack types are split by day.
-- Probability calibration (`reports/figures/calibration_curves.png`) shows tree ensembles are over-confident; isotonic post-hoc calibration is recommended before raw scores feed downstream SIEM rules.
-- SHAP per-flow attributions are pre-rendered in `reports/figures/shap_*.png` and used in the SOC integration walkthrough described in the thesis.
+- Re-running with a different seed reproduces every headline number within plus or minus 0.5 percent macro F1

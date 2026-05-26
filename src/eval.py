@@ -11,14 +11,12 @@ from src.config import DATA_FILE, MODELS_DIR, METRICS_DIR
 # classes with fewer test rows than this get per-class PR curves
 MINORITY_THRESHOLD = 500
 
-
 def auc_from_arrays(fpr, tpr):
     """Trapezoid AUC from FPR/TPR arrays."""
     _trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz", None)
     if _trapz is None:
         raise RuntimeError("numpy has neither trapezoid nor trapz — upgrade numpy")
     return float(_trapz(tpr, fpr))
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -91,14 +89,11 @@ def main():
         print(f"[eval] evaluating {key} ...")
         model    = joblib.load(path)
 
-        # All 4 trained models skip the external scaler:
-        # LogReg pipeline has its own scaler, trees are scale-invariant.
         X_in = X
 
         raw_pred = model.predict(X_in)
         raw_proba = model.predict_proba(X_in) if hasattr(model, "predict_proba") else None
 
-        # XGBoost label remapping (day split has non-contiguous classes)
         remap_classes = None
         if key == "xgboost" and xgb_train_classes is not None:
             remap_classes = xgb_train_classes
@@ -115,7 +110,6 @@ def main():
             pred  = raw_pred
             proba = raw_proba
 
-        # Pad probabilities if we have an unseen class column
         if proba is not None and proba.shape[1] < n_classes:
             padded = np.zeros((proba.shape[0], n_classes), dtype=np.float64)
             padded[:, :proba.shape[1]] = proba
@@ -125,7 +119,6 @@ def main():
             y, pred, labels=np.arange(n_classes), zero_division=0)
         cm = confusion_matrix(y, pred, labels=np.arange(n_classes))
 
-        # Average only over classes with support
         has_support = sup > 0
         rec = {
             "macro_precision": float(np.mean(pr[has_support])) if has_support.any() else 0.0,
@@ -143,16 +136,11 @@ def main():
             "confusion_labels": class_names,
         }
 
-        # ── ROC AUC + ROC curve data ─────────────────────────────────────
-        # include n_classes == 2 too: when unseen-class filtering leaves only
-        # benign + one attack, we still want an AUC in the JSON.
         if proba is not None and n_classes >= 2:
-            # ROC-AUC only on classes with support in test
             classes_with_support = [i for i in range(n_classes) if sup[i] > 0]
 
             try:
                 if len(classes_with_support) == 2:
-                    # 2 classes with support -> binary ROC-AUC
                     pos_cls = classes_with_support[1]
                     y_bin = (y == pos_cls).astype(int)
                     rec["roc_auc_ovr"] = float(roc_auc_score(y_bin, proba[:, pos_cls]))
@@ -201,12 +189,8 @@ def main():
                 print(f"[warn] PR-AUC macro failed for {key}: {e}")
                 rec["pr_auc_macro"] = None
 
-            # Per-class ROC curve data (downsampled for JSON size)
             roc_data = {}
             for i, cls in enumerate(class_names):
-                # __unseen__ column is zero-padded (no training signal), ROC
-                # would be a degenerate single point — skip to avoid misleading
-                # figures downstream.
                 if cls == "__unseen__":
                     continue
                 y_bin = (y == i).astype(int)
@@ -251,7 +235,6 @@ def main():
 
         results[key] = rec
 
-        # Per-model flat files (same as original)
         present = sorted(set(y.tolist()))
         report  = classification_report(
             y, pred, labels=present,
@@ -315,7 +298,6 @@ def main():
     print(f"[eval] wrote {out_dir / 'metrics.json'}")
     print(f"[eval] best model: {best_key} (macro F1={results[best_key]['macro_f1']:.4f})")
     print("[eval] roc_curve_data + pr_curve_data saved in metrics.json (used by report.py)")
-
 
 if __name__ == "__main__":
     main()

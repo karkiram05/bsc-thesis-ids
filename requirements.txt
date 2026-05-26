@@ -1,22 +1,15 @@
-# Runtime dependencies for the bsc-thesis-ids pipeline.
-# Install with: pip install -r requirements.txt
-#
-# Optional dev/notebook tooling lives in requirements-dev.txt.
-
-# Core scientific stack
 numpy>=2.0,<3
 pandas>=2.2,<4
-pyarrow>=15.0          # parquet engine for pandas
+pyarrow>=15.0
 
-# Modelling
 scikit-learn>=1.5,<2
 xgboost>=2.0
 lightgbm>=4.0
 joblib>=1.4
 
-# Interpretability & statistics
 shap>=0.45
-scipy>=1.13            # used for chi-square in McNemar's test
+scipy>=1.13
 
-# Plots
 matplotlib>=3.8
+
+flask>=3.0

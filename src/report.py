@@ -15,7 +15,6 @@ import matplotlib.patches as mpatches
 
 from src.config import METRICS_DIR, FIGURES_DIR, ALERTS_DIR, REPORTS_DIR
 
-# dark theme colours
 BG       = "#0d1117"
 SURFACE  = "#161b22"
 BORDER   = "#30363d"
@@ -91,13 +90,11 @@ GROUP_COLORS = {
     "Other":         MUTED,
 }
 
-
 def _feature_group(name: str) -> str:
     for group, features in FEATURE_GROUPS.items():
         if name in features:
             return group
     return "Other"
-
 
 def _style():
     plt.rcParams.update({
@@ -118,9 +115,6 @@ def _style():
         "axes.spines.top":   False,
         "axes.spines.right": False,
     })
-
-
-# figure 1: confusion matrix
 
 def plot_confusion_matrix(cm: np.ndarray, labels: list[str], fdir: Path, model: str) -> None:
     _style()
@@ -192,9 +186,6 @@ def plot_confusion_matrix(cm: np.ndarray, labels: list[str], fdir: Path, model: 
     plt.close()
     print(f"[report] wrote {out}")
 
-
-# figure 2: feature importance
-
 def plot_feature_importance(imp_df: pd.DataFrame, fdir: Path, model: str) -> None:
     _style()
     top = imp_df.head(20).copy()
@@ -227,7 +218,6 @@ def plot_feature_importance(imp_df: pd.DataFrame, fdir: Path, model: str) -> Non
     ax.legend(handles=patches, loc="lower right", fontsize=8,
               title="Feature Group", title_fontsize=8, framealpha=0.4)
 
-
     ax.set_xlim(0, top["importance"].max() * 1.18)
     ax.spines["left"].set_color(BORDER)
     ax.spines["bottom"].set_color(BORDER)
@@ -237,9 +227,6 @@ def plot_feature_importance(imp_df: pd.DataFrame, fdir: Path, model: str) -> Non
     plt.savefig(out, dpi=180, bbox_inches="tight", facecolor=BG)
     plt.close()
     print(f"[report] wrote {out}")
-
-
-# figure 3: model comparison
 
 def plot_model_comparison(full: dict, fdir: Path) -> None:
     _style()
@@ -293,9 +280,6 @@ def plot_model_comparison(full: dict, fdir: Path) -> None:
     plt.savefig(out, dpi=180, bbox_inches="tight", facecolor=BG)
     plt.close()
     print(f"[report] wrote {out}")
-
-
-# figure 4: per-class F1 heatmap
 
 def plot_per_class_f1(full: dict, fdir: Path) -> None:
     _style()
@@ -368,9 +352,6 @@ def plot_per_class_f1(full: dict, fdir: Path) -> None:
     plt.close()
     print(f"[report] wrote {out}")
 
-
-# figure 5: ROC curves per class
-
 def plot_roc_curves(full: dict, fdir: Path) -> None:
     """Per-class ROC curves from roc_curve_data in metrics.json."""
     _style()
@@ -409,9 +390,6 @@ def plot_roc_curves(full: dict, fdir: Path) -> None:
     plt.close()
     print(f"[report] wrote {out}")
 
-
-# figure 6: PR curves for minority classes
-
 def plot_pr_curves(full: dict, fdir: Path) -> None:
     """PR curves for minority classes from pr_curve_data in metrics.json."""
     _style()
@@ -445,9 +423,6 @@ def plot_pr_curves(full: dict, fdir: Path) -> None:
     plt.savefig(out, dpi=180, bbox_inches="tight", facecolor=BG)
     plt.close()
     print(f"[report] wrote {out}")
-
-
-# figure 7: cross-split gap
 
 def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
     """Generalisation gap chart: strat vs day split."""
@@ -528,9 +503,6 @@ def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
     plt.savefig(out, dpi=180, bbox_inches="tight", facecolor=BG)
     plt.close()
     print(f"[report] wrote {out}")
-
-
-# figure 8: ATT&CK mapping table
 
 def plot_attck_mapping_table(full: dict, fdir: Path, alerts_path: Path) -> None:
     """ATT&CK mapping heatmap with per-class F1 and flow detectability."""
@@ -632,15 +604,11 @@ def plot_attck_mapping_table(full: dict, fdir: Path, alerts_path: Path) -> None:
     plt.close()
     print(f"[report] wrote {out}")
 
-
-# markdown report
-
 def _feature_group_report(name: str) -> str:
     for group, features in FEATURE_GROUPS.items():
         if name in features:
             return group
     return "Other"
-
 
 def write_report(m: dict, out: Path, adir: Path) -> None:
     full    = m.get("full", m)
@@ -775,11 +743,7 @@ def write_report(m: dict, out: Path, adir: Path) -> None:
     out_md.write_text("".join(lines), encoding="utf-8")
     print(f"[report] wrote {out_md}")
 
-
-# main
-
 args_global = None
-
 
 def main() -> None:
     global args_global
@@ -841,7 +805,6 @@ def main() -> None:
 
     # markdown report
     write_report(m, out, adir)
-
 
 if __name__ == "__main__":
     main()

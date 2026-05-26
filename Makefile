@@ -2,12 +2,11 @@
 .PHONY: unsw-data unsw-train unsw-eval unsw-all
 .PHONY: binary binary-strat binary-day lodo validation
 .PHONY: figures shap-mcnemar defense-figures extra-figures traffic
-.PHONY: benchmark bootstrap operating-points anomaly adversarial full
+.PHONY: benchmark bootstrap operating-points anomaly adversarial ablation calibrate full
 
 PY ?= python
 SPLIT ?= day
 
-# ── CICIDS2017 ────────────────────────────────────────────────────────
 data:
 	$(PY) -m src.prepare_data
 
@@ -29,7 +28,6 @@ all: report
 leakage-check: data
 	$(PY) -m src.leakage_check
 
-# ── Binary models (both splits) ──────────────────────────────────────
 binary-strat: data
 	$(PY) -m src.train_binary --split strat --out-dir models/binary_strat
 	$(PY) -m src.eval_binary  --split strat --models-dir models/binary_strat --out-dir reports/metrics_strat_binary
@@ -40,15 +38,12 @@ binary-day: data
 
 binary: binary-strat binary-day
 
-# ── LODO cross-validation ────────────────────────────────────────────
 lodo: data
 	$(PY) -m src.eval_lodo
 
-# ── Validation experiments (V1, V2, V3) ──────────────────────────────
 validation: data
 	$(PY) -m src.run_validation_experiments
 
-# ── UNSW-NB15 ─────────────────────────────────────────────────────────
 unsw-data:
 	$(PY) -m src.prepare_unsw
 
@@ -62,7 +57,6 @@ unsw-eval: unsw-train
 
 unsw-all: unsw-eval
 
-# ── Figures + analysis ───────────────────────────────────────────────
 extra-figures:
 	$(PY) -m src.generate_extra_figures
 
@@ -77,7 +71,6 @@ traffic:
 
 figures: extra-figures defense-figures shap-mcnemar traffic
 
-# ── Deployment / operational metrics (cybersec engineer view) ───────
 benchmark:
 	$(PY) -m src.benchmark_inference
 
@@ -93,7 +86,12 @@ anomaly:
 adversarial:
 	$(PY) -m src.adversarial_eval
 
-# ── Full reproducible pipeline ──────────────────────────────────────
+ablation:
+	$(PY) -m src.ablation_flow_iat_min
+
+calibrate:
+	$(PY) -m src.calibrate_binary_day
+
 full: data sanity leakage-check
 	$(PY) -m src.train --split strat --out-dir models/baseline_strat
 	$(PY) -m src.train --split day   --out-dir models/baseline_day
@@ -106,14 +104,15 @@ full: data sanity leakage-check
 	$(PY) -m src.mitre_alerts --metrics-dir reports/metrics_day   --out-dir reports/alerts_day
 	$(PY) -m src.report --metrics-dir reports/metrics_strat --alerts-dir reports/alerts_strat
 	$(MAKE) validation
-	$(MAKE) figures   # this target already runs src.traffic_analysis as a sub-step
+	$(MAKE) figures
 	$(MAKE) benchmark
 	$(MAKE) bootstrap
 	$(MAKE) operating-points
 	$(MAKE) anomaly
 	$(MAKE) adversarial
+	$(MAKE) ablation
+	$(MAKE) calibrate
 
-# ── Cleanup ──────────────────────────────────────────────────────────
 clean:
 	rm -rf data/processed reports models
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

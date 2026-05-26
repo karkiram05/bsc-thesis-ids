@@ -1,9 +1,3 @@
-"""Leave-One-Day-Out (LODO) binary cross-validation.
-
-Train on 4 days, test on held-out day, repeat for all 5 days.
-Reports mean +/- std of ROC-AUC, PR-AUC, F1, and FPR.
-"""
-
 from __future__ import annotations
 
 import argparse

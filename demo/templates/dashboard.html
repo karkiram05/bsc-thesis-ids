@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SOC Live Console — Flow-Based IDS</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: ui-monospace, "Menlo", "Cascadia Mono", monospace;
+         background: #0e1116; color: #d1d4dc; padding: 16px; font-size: 13px; }
+  header { display: flex; justify-content: space-between; align-items: center;
+           border-bottom: 2px solid #990000; padding-bottom: 8px; margin-bottom: 12px; }
+  h1 { font-size: 18px; color: #fff; font-weight: 600; letter-spacing: 0.5px; }
+  .pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+           background: #57c069; animation: pulse 1s infinite; margin-right: 6px; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .controls button { background: #2a2f3a; color: #d1d4dc; border: 1px solid #444;
+                     padding: 4px 12px; font-family: inherit; font-size: 12px;
+                     cursor: pointer; margin-left: 6px; }
+  .controls button:hover { background: #3a4150; }
+  .grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+  .panel { background: #161b22; border: 1px solid #2a2f3a; padding: 12px; }
+  .panel h2 { font-size: 12px; color: #888; text-transform: uppercase;
+              letter-spacing: 1px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 6px 8px; background: #1c2230; color: #888;
+       font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+       font-size: 10px; }
+  td { padding: 6px 8px; border-bottom: 1px solid #1c2230; }
+  tr.new td { animation: flash 1.2s; }
+  @keyframes flash { from { background: #1f3a23; } to { background: transparent; } }
+  .sev-CRITICAL { color: #f04747; font-weight: bold; }
+  .sev-HIGH { color: #f5a623; font-weight: bold; }
+  .sev-MEDIUM { color: #e8c547; }
+  .sev-LOW { color: #57c069; }
+  .ok { color: #57c069; }
+  .miss { color: #f04747; }
+  .stat-row { display: flex; justify-content: space-between; padding: 4px 0;
+              border-bottom: 1px solid #1c2230; }
+  .stat-label { color: #888; }
+  .stat-value { color: #fff; font-weight: 600; }
+  .by-phase { margin-top: 16px; }
+  .bar { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .bar-label { width: 95px; font-size: 11px; color: #ccc; }
+  .bar-fill { height: 6px; background: #990000; border-radius: 3px; }
+  .bar-count { color: #888; font-size: 11px; }
+  .footer { margin-top: 12px; color: #555; font-size: 11px; text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="pulse"></span>SOC Live Console — Flow-Based ML IDS (replay)</h1>
+  <div class="controls">
+    <span id="status" style="color:#888; margin-right: 12px;">connecting...</span>
+    <button onclick="togglePause()" id="pauseBtn">Pause</button>
+    <button onclick="resetFeed()">Reset</button>
+  </div>
+</header>
+
+<div class="grid">
+  <div class="panel">
+    <h2>Incoming alerts (binary p ≥ 0.0090 Youden-J, day split)</h2>
+    <table>
+      <thead><tr>
+        <th>TIME</th>
+        <th>p(attack)</th>
+        <th>Predicted</th>
+        <th>True</th>
+        <th>ATT&amp;CK</th>
+        <th>Phase</th>
+        <th>SEV</th>
+      </tr></thead>
+      <tbody id="alerts"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Pipeline stats</h2>
+    <div class="stat-row"><span class="stat-label">Flows scored</span><span class="stat-value" id="total">0</span></div>
+    <div class="stat-row"><span class="stat-label">Alerts raised</span><span class="stat-value" id="alerts-count">0</span></div>
+    <div class="stat-row"><span class="stat-label">Attack rate</span><span class="stat-value" id="rate">0%</span></div>
+    <div class="stat-row"><span class="stat-label">Uptime</span><span class="stat-value" id="elapsed">0s</span></div>
+
+    <div class="by-phase">
+      <h2 style="margin-top: 12px;">By kill-chain phase</h2>
+      <div id="by-phase"></div>
+    </div>
+
+    <div class="by-phase">
+      <h2 style="margin-top: 12px;">By severity</h2>
+      <div id="by-severity"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Random Forest binary day-split, retrained May 2026 · CICIDS2017 Friday test set · 516,643 flows replay
+</div>
+
+<script>
+let prevTop = null;
+
+async function tick() {
+  try {
+    const [aR, sR] = await Promise.all([fetch("/api/alerts?n=40"), fetch("/api/stats")]);
+    const alerts = await aR.json();
+    const stats = await sR.json();
+
+    document.getElementById("status").textContent =
+      stats.paused ? "PAUSED" : "live";
+
+    const tb = document.getElementById("alerts");
+    tb.innerHTML = "";
+    alerts.forEach((a, idx) => {
+      const tr = document.createElement("tr");
+      if (idx === 0 && prevTop !== a.ts) tr.className = "new";
+      tr.innerHTML = `
+        <td>${new Date(a.ts*1000).toLocaleTimeString()}</td>
+        <td>${a.p_attack.toFixed(3)}</td>
+        <td>${escape(a.predicted_class)}</td>
+        <td class="${a.correct?'ok':'miss'}">${escape(a.true_class)}</td>
+        <td>${escape(a.attck_id || '-')}</td>
+        <td>${escape(a.ck_phase || '-')}</td>
+        <td class="sev-${a.severity}">${a.severity}</td>
+      `;
+      tb.appendChild(tr);
+    });
+    if (alerts.length) prevTop = alerts[0].ts;
+
+    document.getElementById("total").textContent = stats.total.toLocaleString();
+    document.getElementById("alerts-count").textContent = stats.alerts.toLocaleString();
+    document.getElementById("rate").textContent = (stats.attack_rate*100).toFixed(1) + "%";
+    document.getElementById("elapsed").textContent = stats.elapsed_s + "s";
+
+    renderBars("by-phase", stats.by_phase);
+    renderBars("by-severity", stats.by_severity);
+  } catch(e) {
+    document.getElementById("status").textContent = "disconnected";
+  }
+}
+
+function renderBars(id, obj) {
+  const el = document.getElementById(id);
+  const entries = Object.entries(obj).sort((a,b) => b[1]-a[1]);
+  const max = entries.reduce((m, [_, v]) => Math.max(m, v), 1);
+  el.innerHTML = entries.map(([k, v]) => `
+    <div class="bar">
+      <div class="bar-label">${escape(k)}</div>
+      <div class="bar-fill" style="width:${(v/max)*180}px"></div>
+      <div class="bar-count">${v}</div>
+    </div>
+  `).join("");
+}
+
+function escape(s) {
+  if (s == null) return "-";
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+async function togglePause() {
+  const r = await fetch("/api/pause", {method:"POST"});
+  const {paused} = await r.json();
+  document.getElementById("pauseBtn").textContent = paused ? "Resume" : "Pause";
+}
+
+async function resetFeed() {
+  await fetch("/api/reset", {method:"POST"});
+}
+
+setInterval(tick, 1000);
+tick();
+</script>
+</body>
+</html>

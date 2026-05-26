@@ -1,10 +1,3 @@
-"""Defense figures: day-split distribution, binary vs multi-class, threshold transfer, etc.
-
-All numbers are loaded from artifacts in `reports/metrics_*` and from the
-processed parquet — none are hardcoded — so a fresh `make full` run keeps
-these plots in lock-step with the latest metrics.
-"""
-
 from __future__ import annotations
 
 import json
@@ -26,9 +19,6 @@ FIG_DIR = FIGURES_DIR
 MODELS_KEY = ["logreg", "random_forest", "xgboost", "lightgbm"]
 MODELS_LABEL = ["LogReg", "RF", "XGBoost", "LightGBM"]
 
-
-# ── Helpers: load metrics from the same JSON the rest of the pipeline writes ──
-
 def _require(p: Path) -> Path:
     if not p.exists():
         raise SystemExit(
@@ -36,31 +26,26 @@ def _require(p: Path) -> Path:
         )
     return p
 
-
 def _load_macro_f1(metrics_json: Path) -> list[float]:
     """summary.{model}.macro_f1 from a multi-class metrics.json."""
     data = json.loads(_require(metrics_json).read_text())
     summary = data.get("summary", data)
     return [float(summary[m]["macro_f1"]) for m in MODELS_KEY]
 
-
 def _load_binary_f1(binary_metrics_json: Path) -> list[float]:
     """{model}.f1_at_threshold from a CICIDS binary_metrics.json."""
     data = json.loads(_require(binary_metrics_json).read_text())
     return [float(data[m]["f1_at_threshold"]) for m in MODELS_KEY]
-
 
 def _load_binary_threshold(binary_metrics_json: Path) -> list[float]:
     """{model}.best_threshold_from_val."""
     data = json.loads(_require(binary_metrics_json).read_text())
     return [float(data[m]["best_threshold_from_val"]) for m in MODELS_KEY]
 
-
 def _load_unsw_binary_f1(binary_metrics_json: Path) -> list[float]:
     """UNSW binary uses a flat {model}.f1 key (no _at_threshold suffix)."""
     data = json.loads(_require(binary_metrics_json).read_text())
     return [float(data[m]["f1"]) for m in MODELS_KEY]
-
 
 def _load_day_attack_counts() -> dict[str, dict[str, int]]:
     """Per-day attack counts from the processed parquet (only 2 columns loaded)."""
@@ -74,15 +59,11 @@ def _load_day_attack_counts() -> dict[str, dict[str, int]]:
         out.setdefault(str(r["day"]), {})[str(r["attack_type"])] = int(r["n"])
     return out
 
-
 def _load_class_distribution() -> list[tuple[str, int]]:
     """Total flow count per attack type, descending."""
     df = pd.read_parquet(_require(DATA_FILE), columns=["attack_type"])
     s = df["attack_type"].value_counts().sort_values(ascending=False)
     return [(str(k), int(v)) for k, v in s.items()]
-
-
-# ── Figures ───────────────────────────────────────────────────────────────────
 
 def fig_day_attack_distribution():
     """Attack types per day -- shows why multi-class fails on day split."""
@@ -167,7 +148,6 @@ def fig_day_attack_distribution():
     plt.close(fig)
     print(f"  wrote {out}")
 
-
 def fig_binary_vs_multiclass():
     """Binary vs multi-class F1 comparison across splits."""
 
@@ -221,7 +201,6 @@ def fig_binary_vs_multiclass():
     fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  wrote {out}")
-
 
 def fig_threshold_transfer():
     """Threshold values and impact: strat vs day split."""
@@ -292,7 +271,6 @@ def fig_threshold_transfer():
     plt.close(fig)
     print(f"  wrote {out}")
 
-
 def fig_cross_dataset():
     """CICIDS vs UNSW F1 comparison."""
 
@@ -336,7 +314,6 @@ def fig_cross_dataset():
     fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  wrote {out}")
-
 
 def fig_class_imbalance():
     """Class distribution bar chart (log scale)."""
@@ -390,7 +367,6 @@ def fig_class_imbalance():
     plt.close(fig)
     print(f"  wrote {out}")
 
-
 def main():
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     print("[defense figures] generating...")
@@ -400,7 +376,6 @@ def main():
     fig_cross_dataset()
     fig_class_imbalance()
     print("[defense figures] done.")
-
 
 if __name__ == "__main__":
     main()

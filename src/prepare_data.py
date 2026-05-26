@@ -146,7 +146,7 @@ def main() -> None:
         raise SystemExit(f"Unknown day values: {bad}")
     df["split"] = df["split_day"]
 
-    # Stratified split on attack_type (not binary) so rare classes appear in all splits
+    # Stratified by attack_type. Target ratio train:val:test = 0.62:0.16:0.22, matching the day split.
     y_strat = df["attack_type"].astype(str)
     idx = df.index.to_numpy()
     test_size = 0.2233
