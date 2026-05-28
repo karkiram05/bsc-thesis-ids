@@ -1,5 +1,3 @@
-"""Sanity check: dataset shape, class distribution, split coverage."""
-
 from __future__ import annotations
 
 import numpy as np
@@ -29,7 +27,7 @@ def main() -> None:
 
     # --- 1. File exists ---
     if not DATA_FILE.exists():
-        print(f"[ERROR] Missing {DATA_FILE}. Run: python -m src.prepare_data")
+        print(f"[ERROR] Missing {DATA_FILE}. Run: python -m src.prepare_cicids")
         return
 
     print(f"[sanity] Loading {DATA_FILE} ...")
@@ -77,7 +75,7 @@ def main() -> None:
     # --- 7. Split coverage per split strategy ---
     for split_col in [SPLIT_COL_STRAT, SPLIT_COL_DAY]:
         if split_col not in df.columns:
-            lines.append(f"\n## Split: {split_col}\n\nColumn not found — run prepare_data.\n")
+            lines.append(f"\n## Split: {split_col}\n\nColumn not found — run prepare_cicids.\n")
             continue
 
         lines.append(f"\n## Split: `{split_col}`\n")

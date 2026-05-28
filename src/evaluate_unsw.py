@@ -1,5 +1,3 @@
-"""Evaluate UNSW-NB15 models: multi-class and binary."""
-
 from __future__ import annotations
 
 import argparse

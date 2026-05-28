@@ -1,5 +1,3 @@
-"""Prepare UNSW-NB15: load CSVs, clean, encode categoricals, create train/val/test split."""
-
 from __future__ import annotations
 
 import numpy as np

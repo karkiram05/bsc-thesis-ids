@@ -31,39 +31,51 @@ bsc-thesis-ids/
 ├── data/
 │   ├── raw/cicids2017/             # raw CICFlowMeter parquet files (gitignored)
 │   ├── unsw-nb15/raw/              # UNSW-NB15 CSV files (gitignored)
-│   ├── processed/cicids2017/       # cleaned CICIDS2017 (built by prepare_data)
+│   ├── processed/cicids2017/       # cleaned CICIDS2017 (built by prepare_cicids)
 │   └── processed/unsw-nb15/        # cleaned UNSW-NB15 (built by prepare_unsw)
-├── models/
-│   ├── baseline_strat/             # multi-class models, stratified split
-│   ├── baseline_day/               # multi-class models, day split
-│   ├── binary_strat/               # binary models, stratified split
-│   ├── binary_day/                 # binary models, day split + calibrators
-│   └── unsw/                       # UNSW-NB15 models
-├── reports/
-│   ├── figures/                    # PNGs: confusion matrix, SHAP, ROC, calibration, etc.
-│   ├── metrics_strat/              # multi-class metrics, stratified split
-│   ├── metrics_day/                # multi-class metrics, day split
-│   ├── metrics_strat_binary/       # binary metrics, stratified split
-│   ├── metrics_day_binary/         # binary metrics, day split
-│   ├── metrics_unsw/               # UNSW-NB15 metrics
-│   ├── lodo/                       # leave-one-day-out cross-validation
-│   ├── adversarial/                # evasion, transferability, naive AT, Flow IAT Min ablation
-│   ├── calibration/                # Platt scaling + isotonic regression results
-│   ├── bootstrap/                  # 95 percent CIs for binary metrics
-│   ├── operating_points/           # recall at fixed FPR + ECE
-│   ├── benchmark/                  # inference latency and throughput
-│   ├── anomaly/                    # unsupervised baselines
-│   ├── alerts_strat/               # MITRE ATT&CK alerts, stratified split
-│   ├── alerts_day/                 # MITRE ATT&CK alerts, day split
-│   ├── master_results_table.md     # all CICIDS + UNSW + LODO numbers in one place
-│   ├── statistical_tests.md        # McNemar pairwise comparisons
-│   ├── leakage_check.md            # leakage audit
-│   ├── sanity_check.md             # post-prepare sanity report
-│   └── hyperparameter_table.md     # full hyperparameter spec
-├── src/                            # 25 Python modules (training, evaluation, analysis, plots)
-├── demo/                           # Flask SOC console plus Wireshark bridge (see demo/README.md)
-└── thesis/                         # LaTeX sources for the thesis report (overleaf/)
+├── models/                         # trained model artifacts (gitignored)
+├── reports/                        # metrics, figures, tables (gitignored)
+├── src/                            # all pipeline code (see below)
+├── demo/                           # Flask SOC console + Wireshark bridge
+├── thesis/                         # generated thesis figures
+└── docs/                           # research log
 ```
+
+### Source modules (`src/`)
+
+**Data preparation**
+- `config.py` -- shared paths, leakage columns, split definitions
+- `prepare_cicids.py` -- clean, split, and save CICIDS2017
+- `prepare_unsw.py` -- clean, split, and save UNSW-NB15
+- `leakage_check.py` -- verify rate-derived features are removed
+- `sanity_check.py` -- post-prepare data quality report
+
+**Training**
+- `train.py` -- multi-class models on CICIDS2017
+- `train_binary.py` -- binary (benign vs attack) models on CICIDS2017
+- `train_unsw.py` -- multi-class and binary models on UNSW-NB15
+
+**Evaluation**
+- `evaluate.py` -- multi-class evaluation (metrics, confusion matrices, ROC/PR curves)
+- `evaluate_binary.py` -- binary evaluation (threshold tuning, calibration curves)
+- `evaluate_lodo.py` -- leave-one-day-out CV, binary and multi-class (`--task`)
+- `evaluate_unsw.py` -- UNSW-NB15 evaluation
+
+**Analysis and experiments**
+- `adversarial_eval.py` -- score-query evasion, transferability, naive AT
+- `ablation_flow_iat_min.py` -- drop Flow IAT Min, retrain, re-attack
+- `calibrate_binary_day.py` -- Platt scaling and isotonic regression
+- `operating_points.py` -- recall at fixed FPR operating points
+- `anomaly_detection.py` -- unsupervised baselines (IForest, LOF)
+- `bootstrap_cis.py` -- bootstrap 95% confidence intervals
+- `benchmark_inference.py` -- inference latency and throughput
+- `validation.py` -- near-duplicate and split-policy sensitivity checks
+**Figures and reporting**
+- `thesis_figures.py` -- all thesis figures (white background, print-ready)
+- `shap_mcnemar.py` -- SHAP beeswarm/waterfall, McNemar tests, summary tables
+- `report.py` -- dark-theme report figures and markdown for GitHub
+- `traffic_analysis.py` -- per-day traffic analysis and MITRE tactic distribution
+- `mitre_alerts.py` -- MITRE ATT&CK alert generation
 
 ---
 
@@ -92,7 +104,7 @@ Place the raw datasets:
 make full
 ```
 
-Runtime is roughly 2 to 5 hours on a modern laptop. The two slowest stages are `eval_lodo` (20 model fits across 5 folds) and `adversarial` (greedy evasion plus 2000-sample adversarial training set generation). On macOS, prevent the lid sleeping with `caffeinate -i make full`.
+Runtime is roughly 2 to 5 hours on a modern laptop. The two slowest stages are `lodo` (20 model fits across 5 folds) and `adversarial` (greedy evasion plus adversarial training set generation). On macOS, prevent lid sleeping with `caffeinate -i make full`.
 
 ### Per-stage targets
 
@@ -105,16 +117,18 @@ make train SPLIT=day     # multi-class training, day split
 make eval  SPLIT=strat   # multi-class evaluation
 make eval  SPLIT=day
 make binary              # binary models, both splits
-make lodo                # leave-one-day-out cross-validation
+make lodo                # LODO binary cross-validation
+make lodo-multiclass     # LODO multi-class cross-validation
 make unsw-all            # UNSW-NB15 training and evaluation
-make figures             # render PNGs
+make figures             # render all figures
 make benchmark           # inference latency and throughput
-make bootstrap           # 95 percent CIs for binary metrics
+make bootstrap           # 95% CIs for binary metrics
 make operating-points    # recall at fixed FPR
 make anomaly             # unsupervised baselines
 make adversarial         # evasion, transferability, naive AT
 make ablation            # Flow IAT Min ablation
-make calibrate           # post-processing Platt and isotonic calibration
+make calibrate           # post-processing calibration
+make validation          # near-duplicate and split-policy checks
 ```
 
 ---
@@ -155,12 +169,12 @@ All numbers from `reports/master_results_table.md`.
 | XGBoost | 0.997 | 0.757 | 0.972 |
 | LightGBM | 0.998 | 0.744 | 0.957 |
 
-### Leave-one-day-out cross-validation (binary, 4 attack-bearing folds, Monday is benign-only)
+### Leave-one-day-out cross-validation (binary, 4 attack-bearing folds)
 
 | Model | F1 | ROC-AUC |
 |---|---:|---:|
 | Logistic Regression | 0.293 | 0.630 |
-| **Random Forest** | **0.549** | **0.926 plus or minus 0.053** |
+| **Random Forest** | **0.549** | **0.926 +/- 0.053** |
 | XGBoost | 0.437 | 0.921 |
 | LightGBM | 0.340 | 0.838 |
 
@@ -184,7 +198,7 @@ The model ranking flips between datasets. There is no universal best.
 | Undefended RF | 0.256 | 0.208 | 0.859 |
 | Naive adversarial-trained RF | 0.222 | 0.220 | 0.827 |
 
-Transferability: 86.8 percent of RF-adversarial flows also evade XGBoost. Clean attack flows are misclassified by XGBoost at 26 percent. An attacker need not know which model the defender deployed.
+Transferability: 86.8 percent of RF-adversarial flows also evade XGBoost.
 
 Top exploited features in successful evasions:
 
@@ -202,7 +216,7 @@ Flow IAT Min ablation (drop the most-exploited feature, retrain, re-attack):
 |---|---:|---:|
 | Clean F1 | 0.859 | 0.853 |
 | Unbounded evasion | 0.256 | 0.224 |
-| Top exploited feature | Flow IAT Min (84.4 percent) | Forward IAT Min (87.5 percent) |
+| Top exploited feature | Flow IAT Min (84.4%) | Forward IAT Min (87.5%) |
 
 Removing the most-exploited feature does not stop the attack; it re-concentrates on the next timing feature. The vulnerability is structural to inter-arrival timing.
 

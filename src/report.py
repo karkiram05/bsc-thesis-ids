@@ -1,5 +1,3 @@
-"""Generate report.md and thesis figures from evaluation metrics."""
-
 from __future__ import annotations
 
 import argparse
@@ -358,7 +356,7 @@ def plot_roc_curves(full: dict, fdir: Path) -> None:
     roc_data = full.get("xgboost", {}).get("roc_curve_data")
     if not roc_data:
         print("[report] roc_curve_data not in metrics.json — skipping roc_curves.png")
-        print("         (make sure you are running the updated eval.py)")
+        print("         (make sure you are running the updated evaluate.py)")
         return
 
     fig, ax = plt.subplots(figsize=(11, 8))
@@ -396,7 +394,7 @@ def plot_pr_curves(full: dict, fdir: Path) -> None:
     pr_data = full.get("xgboost", {}).get("pr_curve_data")
     if not pr_data:
         print("[report] pr_curve_data not in metrics.json — skipping pr_curves_minority.png")
-        print("         (make sure you are running the updated eval.py)")
+        print("         (make sure you are running the updated evaluate.py)")
         return
 
     fig, ax = plt.subplots(figsize=(10, 7))
@@ -433,7 +431,7 @@ def plot_crossdataset_delta(fdir: Path, cross_metrics_path: Path) -> None:
 
     if not strat_path.exists() or not day_path.exists():
         print("[report] crossdataset_delta.png skipped — need both metrics_strat and metrics_day")
-        print("         Run: python -m src.train --split day && python -m src.eval --split day")
+        print("         Run: python -m src.train --split day && python -m src.evaluate --split day")
         return
 
     m_strat = json.loads(strat_path.read_text()).get("full", {})
@@ -764,7 +762,7 @@ def main() -> None:
 
     mpath = mdir / "metrics.json"
     if not mpath.exists():
-        raise SystemExit(f"Missing {mpath}. Run: python -m src.eval first.")
+        raise SystemExit(f"Missing {mpath}. Run: python -m src.evaluate first.")
 
     m       = json.loads(mpath.read_text())
     full    = m.get("full", m)

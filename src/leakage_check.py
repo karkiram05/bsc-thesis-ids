@@ -1,5 +1,3 @@
-"""Leakage checks: exact duplicates and near-duplicates across splits."""
-
 from __future__ import annotations
 
 import argparse

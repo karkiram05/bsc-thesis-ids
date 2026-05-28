@@ -1,4 +1,3 @@
-"""Train baseline (LogReg) and stronger models (RF, XGBoost). Multi-class on attack_type."""
 from __future__ import annotations
 import argparse, json
 from pathlib import Path
@@ -62,13 +61,13 @@ def main():
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     if not DATA_FILE.exists():
-        raise SystemExit(f"Missing {DATA_FILE}. Run: python -m src.prepare_data")
+        raise SystemExit(f"Missing {DATA_FILE}. Run: python -m src.prepare_cicids")
     df = pd.read_parquet(DATA_FILE)
     present_leak = [c for c in df.columns if c in LEAKAGE_COLUMNS]
     if present_leak:
         raise SystemExit(
             "Leakage columns are present in processed data. "
-            f"Rebuild dataset with src.prepare_data. Found: {present_leak}"
+            f"Rebuild dataset with src.prepare_cicids. Found: {present_leak}"
         )
     for s in ["train", "val", "test"]:
         if (df[split_col] == s).sum() == 0:
@@ -80,7 +79,7 @@ def main():
     n_classes = len(le.classes_)
     print(f"[load] train={len(yt)} val={len(yv)} test={len(ys)} features={len(feat)} classes={n_classes}")
 
-    # Scaler saved for eval.py interface; only LogReg actually needs it
+    # Scaler saved for evaluate.py interface; only LogReg actually needs it
     scaler = StandardScaler()
     scaler.fit(Xt)
 

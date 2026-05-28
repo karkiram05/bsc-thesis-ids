@@ -1,4 +1,4 @@
-"""Shared config: paths, leakage columns, split and model defaults, plus a few small helpers."""
+"""Shared paths, leakage columns, split definitions, and small helpers."""
 from __future__ import annotations
 from pathlib import Path
 from typing import Iterable

@@ -33,3 +33,9 @@ data/processed/
 # Models and reports
 models/
 reports/
+
+# Overleaf project (local copy, synced separately)
+thesis 21-23-02-846/
+
+# Generated thesis figures (regenerated from reports/)
+thesis/overleaf/figures/

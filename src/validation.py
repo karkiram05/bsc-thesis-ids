@@ -1,5 +1,3 @@
-"""Validation experiments: near-dup sensitivity, split policy, binary operating points."""
-
 from __future__ import annotations
 
 import numpy as np
@@ -386,7 +384,7 @@ def exp3_binary_operating_points(df: pd.DataFrame) -> None:
 
 def main() -> None:
     if not DATA_FILE.exists():
-        raise SystemExit(f"Missing {DATA_FILE}. Run: python -m src.prepare_data")
+        raise SystemExit(f"Missing {DATA_FILE}. Run: python -m src.prepare_cicids")
 
     df = pd.read_parquet(DATA_FILE)
     print(f"[validation] loaded {len(df)} rows")

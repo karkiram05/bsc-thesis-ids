@@ -1,4 +1,3 @@
-"""SHAP explainability, McNemar's test, and styled table figures."""
 from __future__ import annotations
 
 import joblib
@@ -470,7 +469,7 @@ def fig_hyperparameters():
 
 def main():
     FIG_DIR.mkdir(parents=True, exist_ok=True)
-    print("[generate_shap_mcnemar] starting...\n")
+    print("[shap_mcnemar] starting...\n")
 
     shap_analysis()
 

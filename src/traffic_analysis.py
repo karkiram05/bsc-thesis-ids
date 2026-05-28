@@ -1,5 +1,3 @@
-"""Blue team traffic analysis: per-attack flow stats, detection rules, MITRE mapping."""
-
 from __future__ import annotations
 
 import matplotlib
@@ -306,7 +304,7 @@ TACTIC_COLORS = {
 
 def _load_data() -> pd.DataFrame:
     if not DATA_FILE.exists():
-        raise SystemExit(f"Missing {DATA_FILE}. Run: python -m src.prepare_data first.")
+        raise SystemExit(f"Missing {DATA_FILE}. Run: python -m src.prepare_cicids first.")
     print(f"[traffic_analysis] loading {DATA_FILE} ...")
     df = pd.read_parquet(DATA_FILE)
     print(f"[traffic_analysis] {len(df):,} rows, {len(df.columns)} columns")

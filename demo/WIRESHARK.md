@@ -52,7 +52,7 @@ structurally stable, not because the year is 2017.
 1. **Two-stage pipeline, not real-time.** PCAP capture and
    CICFlowMeter both batch. A production deployment would use Zeek or
    Suricata, which emit flow records directly without the PCAP round
-   trip. The Future Work section of Chapter 17 already calls this out.
+   trip. The Future Work section of Chapter 8 already calls this out.
 2. **TCP connect scan, not SYN scan.** Without sudo, nmap falls back
    to `-sT` (TCP connect). This is quieter than `-sS` because each
    connection completes the handshake. If you want louder alerts,
@@ -62,7 +62,7 @@ structurally stable, not because the year is 2017.
    threshold maximises F1 on the CICIDS2017 Friday test set. On live
    home Wi-Fi traffic, you will see a handful of false positives on
    benign HTTPS flows. This is precisely the false-positive cost
-   discussed in Chapter 7 and Chapter 16, made concrete.
+   discussed in Sections 5.2 and 6.3, made concrete.
 
 ## One-time setup
 
@@ -147,12 +147,12 @@ Internally it:
 
 1. **Dashboard reel** (30 s). `cd demo && python app.py`. Open
    http://127.0.0.1:5050. "This is the deployed random forest from
-   Chapter 7. Each row is a Friday test flow scored above the 0.009
+   Section 5.2. Each row is a Friday test flow scored above the 0.009
    threshold. Green is a correct alert, red is a false positive on a
    benign flow that crossed the threshold."
 
 2. **MITRE enrichment** (30 s). "Each alert is tagged with the ATT&CK
-   technique from Chapter 13. T1110 routes to brute-force playbooks,
+   technique from Section 6.1. T1110 routes to brute-force playbooks,
    T1498 to DDoS playbooks. A real SOC consumes these IDs directly."
 
 3. **Live capture punchline** (1 min). Switch to a terminal:
@@ -166,11 +166,11 @@ Internally it:
    scan flows to 192.168.8.1. The training data is from 2017. The
    scan is from today. The model still flags it."
 
-4. **Adversarial caveat** (1 min). "But this same model has a 21.4
-   percent bounded evasion rate in Chapter 10. If I added a 0.16
+4. **Adversarial caveat** (1 min). "But this same model has a 20.8
+   percent bounded evasion rate in Section 5.5. If I added a 0.16
    millisecond delay between every fifth SYN packet, the alerts
    would disappear. The detector is useful but not unforgeable. The
-   deployment recommendation in Chapter 16 is RF for current
+   deployment recommendation in Section 5.6 is RF for current
    operations, paired with Zeek for flow primitives and a second
    model in an ensemble."
 

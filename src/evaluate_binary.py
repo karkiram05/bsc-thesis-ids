@@ -1,5 +1,3 @@
-"""Binary IDS evaluation: benign vs attack. Threshold tuned on val, applied on test."""
-
 from __future__ import annotations
 
 import argparse
@@ -97,7 +95,7 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
 
     if not DATA_FILE.exists():
-        raise SystemExit(f"Missing {DATA_FILE}. Run: python -m src.prepare_data")
+        raise SystemExit(f"Missing {DATA_FILE}. Run: python -m src.prepare_cicids")
 
     print("[binary_eval] loading data ...")
     df = pd.read_parquet(DATA_FILE)
@@ -120,7 +118,7 @@ def main() -> None:
     if not models:
         raise SystemExit(
             f"No binary model files found in {bin_models_dir}. "
-            "Run src.train_binary before src.eval_binary."
+            "Run src.train_binary before src.evaluate_binary."
         )
 
     all_results = {}

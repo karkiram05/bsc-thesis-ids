@@ -1,5 +1,3 @@
-"""Prepare CICIDS2017: load flows, remove leakage, handle duplicates and conflicting labels."""
-
 from __future__ import annotations
 
 import re

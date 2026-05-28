@@ -1,5 +1,3 @@
-"""Train binary IDS models: Benign vs Attack."""
-
 from __future__ import annotations
 
 import argparse
@@ -43,18 +41,18 @@ def main() -> None:
     df = pd.read_parquet(DATA_FILE)
 
     # defensive: leakage columns (Flow Bytes/s etc.) must already be stripped
-    # by prepare_data. Match train.py so both trainers fail loud if not.
+    # by prepare_cicids. Match train.py so both trainers fail loud if not.
     present_leak = [c for c in df.columns if c in LEAKAGE_COLUMNS]
     if present_leak:
         raise SystemExit(
             f"Leakage columns present in data: {present_leak}. "
-            "Rebuild with: python -m src.prepare_data"
+            "Rebuild with: python -m src.prepare_cicids"
         )
 
     for s in ["train", "val", "test"]:
         cnt = (df[split_col] == s).sum()
         if cnt == 0:
-            raise SystemExit(f"No '{s}' split in {split_col}. Check prepare_data.")
+            raise SystemExit(f"No '{s}' split in {split_col}. Check prepare_cicids.")
 
     if args.sample > 0:
         parts = []
@@ -83,7 +81,7 @@ def main() -> None:
         f"pos_rate_train={yt.mean():.4f}"
     )
 
-    # Scaler saved for eval.py interface; only LogReg needs it
+    # Scaler saved for evaluate_binary.py interface; only LogReg needs it
     scaler = StandardScaler()
     scaler.fit(Xt)
 

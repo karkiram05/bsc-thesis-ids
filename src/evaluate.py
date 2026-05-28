@@ -1,4 +1,3 @@
-"""Evaluate models: precision, recall, F1, ROC AUC, per-class CM, error analysis."""
 from __future__ import annotations
 import argparse, json
 from pathlib import Path

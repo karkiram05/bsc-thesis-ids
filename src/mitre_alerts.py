@@ -1,5 +1,3 @@
-"""Produce alert output: predicted attack type -> MITRE ATT&CK technique + justification."""
-
 from __future__ import annotations
 
 import argparse
@@ -69,7 +67,7 @@ def main() -> None:
     if not MAPPING_PATH.exists():
         raise SystemExit(f"Missing MITRE mapping file: {MAPPING_PATH}")
     if not (metrics_dir / "metrics.json").exists():
-        raise SystemExit(f"Missing metrics.json in {metrics_dir}. Run: python -m src.eval first.")
+        raise SystemExit(f"Missing metrics.json in {metrics_dir}. Run: python -m src.evaluateuate first.")
 
     mapping = json.loads(MAPPING_PATH.read_text())
     m = json.loads((metrics_dir / "metrics.json").read_text())
@@ -87,11 +85,11 @@ def main() -> None:
                 default=None,
             )
     if not best:
-        raise SystemExit("No model found in metrics.json. Run: python -m src.eval")
+        raise SystemExit("No model found in metrics.json. Run: python -m src.evaluate")
 
     pred_path = metrics_dir / f"predictions_{best}.csv"
     if not pred_path.exists():
-        raise SystemExit(f"Missing {pred_path}. Run: python -m src.eval")
+        raise SystemExit(f"Missing {pred_path}. Run: python -m src.evaluate")
 
     pred_df = pd.read_csv(pred_path)
     unique_pred = sorted(p for p in pred_df["pred_label"].unique().tolist()
