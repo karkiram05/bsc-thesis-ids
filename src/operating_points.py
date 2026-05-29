@@ -130,6 +130,10 @@ def main():
 
     fig, ax = plt.subplots(figsize=(10, 5))
     names = list(results.keys())
+    # readable labels: snake_case -> display name
+    label_map = {"logreg": "LogReg", "random_forest": "Random Forest",
+                 "xgboost": "XGBoost", "lightgbm": "LightGBM"}
+    pretty = [label_map.get(n, n) for n in names]
     x = np.arange(len(names))
     w = 0.25
     vals = {t: [results[n]["operating_points"][f"fpr_{t}"]["recall"] for n in names]
@@ -138,10 +142,10 @@ def main():
     ax.bar(x,     vals[0.001],  w, label="FPR = 0.1%",  color="#DD8452")
     ax.bar(x + w, vals[0.01],   w, label="FPR = 1%",    color="#4C72B0")
     ax.set_xticks(x)
-    ax.set_xticklabels(names)
+    ax.set_xticklabels(pretty)
     ax.set_ylabel("Recall (true positive rate)")
     ax.set_ylim(0, 1.05)
-    ax.set_title("Operating points — recall at fixed FPR budgets (Day split, Friday test)")
+    ax.set_title("Recall at fixed FPR budgets — binary day split (Friday test)")
     ax.legend()
     for i, name in enumerate(names):
         for off, t in zip([-w, 0, w], FPR_TARGETS):

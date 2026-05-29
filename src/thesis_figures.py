@@ -157,8 +157,6 @@ def fig_confusion_matrix() -> None:
     _save(fig, "confusion_matrix.png")
 
 
-# ── evasion storyboard ───────────────────────────────────────────────
-
 def fig_evasion_storyboard() -> None:
     """2x2 storyboard summarising the adversarial attack."""
     adv = json.loads(
@@ -167,16 +165,15 @@ def fig_evasion_storyboard() -> None:
     rac_d = adv["robust_accuracy_curve_defended"]
     top_feats = adv["top_features_exploited"][:6]
 
-    fig, axes = plt.subplots(2, 2, figsize=(16, 11))
+    fig, axes = plt.subplots(2, 2, figsize=(18, 12))
     fig.suptitle(
         r"Adversarial evasion: $\varepsilon = 0.25\sigma$, "
         "score-query black-box, 19 perturbable features",
-        fontsize=16, fontweight="bold", y=1.00)
+        fontsize=20, fontweight="bold", y=1.00)
 
-    # Panel A: headline numbers
     ax = axes[0, 0]
     ax.axis("off")
-    ax.set_title("A. Headline numbers", fontsize=15, loc="left", pad=10)
+    ax.set_title("A. Headline numbers", fontsize=18, loc="left", pad=10)
     bounded_undef = 1.0 - adv["robust_accuracy_curve_undefended"]["0.25σ"]
     bounded_def = 1.0 - adv["robust_accuracy_curve_defended"]["0.25σ"]
     headline = (
@@ -196,11 +193,10 @@ def fig_evasion_storyboard() -> None:
         f"{adv['transferability'].get('xgb_evasion_on_rf_adversarial', 0):.1%}"
     )
     ax.text(0.02, 0.95, headline, ha="left", va="top",
-            fontsize=12.5, family="monospace", transform=ax.transAxes,
+            fontsize=15, family="monospace", transform=ax.transAxes,
             bbox=dict(boxstyle="round,pad=0.6",
                       facecolor="#f4f4f4", edgecolor="#888"))
 
-    # Panel B: top exploited features
     ax = axes[0, 1]
     if top_feats:
         names = [t[0] if isinstance(t, (list, tuple)) else t["feature"]
@@ -212,19 +208,19 @@ def fig_evasion_storyboard() -> None:
         y = np.arange(len(names))[::-1]
         bars = ax.barh(y, shares, color="#c0392b", alpha=0.85)
         ax.set_yticks(y)
-        ax.set_yticklabels(names, fontsize=11)
+        ax.set_yticklabels(names, fontsize=14)
         ax.set_xlim(0, max(shares) * 1.15)
-        ax.set_xlabel("Share of successful evasions", fontsize=12)
+        ax.set_xlabel("Share of successful evasions", fontsize=14)
         ax.set_title("B. Top features exploited by the attack",
-                     fontsize=15, loc="left", pad=10)
+                     fontsize=18, loc="left", pad=10)
         for bar, val in zip(bars, shares):
             ax.text(val + 0.01, bar.get_y() + bar.get_height() / 2,
-                    f"{val:.1%}", va="center", fontsize=11)
+                    f"{val:.1%}", va="center", fontsize=14)
+        ax.tick_params(axis="x", labelsize=12)
         ax.spines[["top", "right"]].set_visible(False)
     else:
         ax.axis("off")
 
-    # Panel C: robust accuracy curve
     ax = axes[1, 0]
 
     def _curve(rac):
@@ -236,23 +232,23 @@ def fig_evasion_storyboard() -> None:
 
     eps_u, acc_u = _curve(rac_u)
     eps_d, acc_d = _curve(rac_d)
-    ax.plot(eps_u, acc_u, "-o", color="#c0392b", linewidth=2.4,
-            markersize=7, label="Undefended RF")
-    ax.plot(eps_d, acc_d, "-s", color="#27ae60", linewidth=2.4,
-            markersize=7, label="AT-defended RF")
-    ax.axvline(0.25, color="#555", linestyle="--", linewidth=1.5,
+    ax.plot(eps_u, acc_u, "-o", color="#c0392b", linewidth=2.8,
+            markersize=9, label="Undefended RF")
+    ax.plot(eps_d, acc_d, "-s", color="#27ae60", linewidth=2.8,
+            markersize=9, label="AT-defended RF")
+    ax.axvline(0.25, color="#555", linestyle="--", linewidth=1.8,
                label=r"Deployment budget $\varepsilon = 0.25\sigma$")
     ax.set_xlabel(r"Perturbation budget $\varepsilon$ ($\sigma$ units)",
-                  fontsize=12)
-    ax.set_ylabel("Robust accuracy on attack flows", fontsize=12)
+                  fontsize=14)
+    ax.set_ylabel("Robust accuracy on attack flows", fontsize=14)
     ax.set_title("C. Robust accuracy vs perturbation budget",
-                 fontsize=15, loc="left", pad=10)
+                 fontsize=18, loc="left", pad=10)
     ax.set_ylim(0, 1.02)
-    ax.legend(loc="lower left", fontsize=11)
+    ax.legend(loc="lower left", fontsize=13)
     ax.grid(True, alpha=0.25)
+    ax.tick_params(axis="both", labelsize=12)
     ax.spines[["top", "right"]].set_visible(False)
 
-    # Panel D: transferability
     ax = axes[1, 1]
     transfer = adv["transferability"]
     labels_t = ["XGBoost on\nclean attack flows",
@@ -262,20 +258,19 @@ def fig_evasion_storyboard() -> None:
     colors_t = ["#7f8c8d", "#c0392b"]
     bars = ax.bar(labels_t, vals_t, color=colors_t, alpha=0.9)
     ax.set_ylim(0, 1.0)
-    ax.set_ylabel("Evasion / misclassification rate", fontsize=12)
+    ax.set_ylabel("Evasion / misclassification rate", fontsize=14)
     ax.set_title(r"D. Transferability: RF $\to$ XGBoost",
-                 fontsize=15, loc="left", pad=10)
+                 fontsize=18, loc="left", pad=10)
     for bar, val in zip(bars, vals_t):
         ax.text(bar.get_x() + bar.get_width() / 2, val + 0.02,
-                f"{val:.1%}", ha="center", fontsize=12, fontweight="bold")
+                f"{val:.1%}", ha="center", fontsize=15, fontweight="bold")
     ax.spines[["top", "right"]].set_visible(False)
-    ax.tick_params(axis="x", labelsize=11)
+    ax.tick_params(axis="x", labelsize=13)
+    ax.tick_params(axis="y", labelsize=12)
 
     plt.tight_layout()
     _save(fig, "evasion_storyboard.png")
 
-
-# ── feature importance ───────────────────────────────────────────────
 
 def fig_feature_importance_xgb() -> None:
     """XGBoost top-20 gain-based importance (stratified split)."""
@@ -346,8 +341,6 @@ def fig_feature_importance_lgbm() -> None:
     _save(fig, "feature_importance_lightgbm.png")
 
 
-# ── ROC curves ───────────────────────────────────────────────────────
-
 def fig_roc_curves() -> None:
     """Binary day-split ROC curves, all 4 models."""
     metrics = json.loads(
@@ -375,8 +368,6 @@ def fig_roc_curves() -> None:
     _save(fig, "roc_curves.png")
 
 
-# ── PR curves ────────────────────────────────────────────────────────
-
 def fig_pr_curves_minority() -> None:
     """Binary day-split precision-recall curves, all 4 models."""
     fig, ax = plt.subplots(figsize=(9, 6))
@@ -403,8 +394,6 @@ def fig_pr_curves_minority() -> None:
     plt.tight_layout()
     _save(fig, "pr_curves_minority.png")
 
-
-# ── per-class F1 heatmap ────────────────────────────────────────────
 
 def fig_per_class_f1() -> None:
     """Per-class binary F1 heatmap across all 4 models (stratified)."""
@@ -444,8 +433,6 @@ def fig_per_class_f1() -> None:
     _save(fig, "per_class_f1.png")
 
 
-# ── calibration curves ───────────────────────────────────────────────
-
 def fig_calibration_curves() -> None:
     """Calibration curves for binary classifiers, both splits side by side."""
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
@@ -457,12 +444,12 @@ def fig_calibration_curves() -> None:
         ("metrics_strat_binary", "Stratified split"),
         ("metrics_day_binary", "Day split (Friday test)"),
     ]
-    tree_models = ["random_forest", "xgboost", "lightgbm"]
+    all_models = ["logreg", "random_forest", "xgboost", "lightgbm"]
     for ax, (split_dir, title) in zip(axes, split_dirs):
         ax.plot([0, 1], [0, 1], "k--", linewidth=1.2, label="Perfect",
                 alpha=0.7)
         base = REPORTS / split_dir
-        for model in tree_models:
+        for model in all_models:
             csv_path = base / f"binary_calibration_curve_{model}.csv"
             if not csv_path.exists():
                 continue
@@ -481,8 +468,6 @@ def fig_calibration_curves() -> None:
     plt.tight_layout()
     _save(fig, "calibration_curves.png")
 
-
-# ── day attack distribution ──────────────────────────────────────────
 
 def fig_day_attack_distribution() -> None:
     """Attack types per day, shows why multi-class fails on day split."""
@@ -504,12 +489,12 @@ def fig_day_attack_distribution() -> None:
     tactic_colors = {
         "Benign": "#95a5a6",
         "FTP-Patator": "#e74c3c", "SSH-Patator": "#c0392b",
-        "DoS Hulk": "#8B0000", "DoS GoldenEye": "#A52A2A",
-        "DoS slowloris": "#CD5C5C", "DoS Slowhttptest": "#DC143C",
+        "DoS Hulk": "#1f77b4", "DoS GoldenEye": "#3498db",
+        "DoS slowloris": "#5dade2", "DoS Slowhttptest": "#85c1e9",
         "Heartbleed": "#FF1493",
         "Web Attack-Brute Force": "#e67e22", "Web Attack-XSS": "#f39c12",
         "Infiltration": "#2ecc71", "Web Attack-Sql Injection": "#d35400",
-        "DDoS": "#800000", "PortScan": "#27ae60", "Bot": "#8e44ad",
+        "DDoS": "#1f3a93", "PortScan": "#27ae60", "Bot": "#8e44ad",
     }
 
     fig, ax = plt.subplots(figsize=(14, 7))
@@ -529,22 +514,22 @@ def fig_day_attack_distribution() -> None:
                         fontweight="bold", color="white")
             bottom += count
 
-    ax.axvspan(-0.5, 2.5, alpha=0.08, color="blue")
-    ax.axvspan(2.5, 3.5, alpha=0.08, color="orange")
-    ax.axvspan(3.5, 4.5, alpha=0.08, color="red")
+    ax.axvspan(-0.5, 2.5, alpha=0.04, color="#6fa8dc", zorder=0)
+    ax.axvspan(2.5, 3.5, alpha=0.04, color="#f6b26b", zorder=0)
+    ax.axvspan(3.5, 4.5, alpha=0.04, color="#e06666", zorder=0)
     ylim = ax.get_ylim()[1]
-    ax.text(1, ylim * 0.95, "TRAIN", ha="center", fontsize=14,
-            fontweight="bold", color="blue", alpha=0.5)
-    ax.text(3, ylim * 0.95, "VAL", ha="center", fontsize=14,
-            fontweight="bold", color="orange", alpha=0.5)
-    ax.text(4, ylim * 0.95, "TEST", ha="center", fontsize=14,
-            fontweight="bold", color="red", alpha=0.5)
+    ax.text(1, ylim * 0.92, "TRAIN", ha="center", fontsize=13,
+            fontweight="bold", color="#1f3a93", alpha=0.45)
+    ax.text(3, ylim * 0.92, "VAL", ha="center", fontsize=13,
+            fontweight="bold", color="#a0522d", alpha=0.45)
+    ax.text(4, ylim * 0.92, "TEST", ha="center", fontsize=13,
+            fontweight="bold", color="#8b0000", alpha=0.45)
 
     ax.set_xticks(x)
     ax.set_xticklabels(list(days_data.keys()), fontsize=11)
-    ax.set_ylabel("Number of attack flows", fontsize=12)
+    ax.set_ylabel("Number of attack flows (log scale)", fontsize=12)
     ax.set_title(
-        "CICIDS2017: attack types per day (day-based split)\n"
+        "CICIDS2017 attack types per day under the day-based split\n"
         "Friday test attacks (DDoS, PortScan, Bot) never appear in training",
         fontsize=13, fontweight="bold")
     ax.set_yscale("log")
@@ -564,8 +549,6 @@ def fig_day_attack_distribution() -> None:
     plt.tight_layout()
     _save(fig, "day_attack_distribution.png")
 
-
-# ── class imbalance ──────────────────────────────────────────────────
 
 def fig_class_imbalance() -> None:
     """Class distribution bar chart (log scale)."""
@@ -617,8 +600,6 @@ def fig_class_imbalance() -> None:
     _save(fig, "class_imbalance.png")
 
 
-# ── cross dataset comparison ────────────────────────────────────────
-
 def fig_cross_dataset() -> None:
     """CICIDS vs UNSW F1 comparison."""
     cicids_mc = _load_macro_f1(REPORTS / "metrics_strat" / "metrics.json")
@@ -663,8 +644,6 @@ def fig_cross_dataset() -> None:
     plt.tight_layout()
     _save(fig, "cross_dataset_comparison.png")
 
-
-# ── LODO folds ───────────────────────────────────────────────────────
 
 def fig_lodo_folds() -> None:
     """LODO fold-level ROC-AUC and F1 bar chart."""
@@ -714,8 +693,6 @@ def fig_lodo_folds() -> None:
     plt.tight_layout()
     _save(fig, "lodo_folds.png")
 
-
-# ── generalisation gap ───────────────────────────────────────────────
 
 def fig_generalisation_gap() -> None:
     """Strat vs day F1 for all models, multi-class and binary."""
@@ -771,8 +748,6 @@ def fig_generalisation_gap() -> None:
     plt.tight_layout()
     _save(fig, "generalisation_gap_all_models.png")
 
-
-# ── master results table ─────────────────────────────────────────────
 
 def master_results_table() -> None:
     """Aggregate results CSV and markdown table across all experiments."""
@@ -834,8 +809,6 @@ def master_results_table() -> None:
     print(f"  wrote {md_path}")
 
 
-# ── copy external figures ────────────────────────────────────────────
-
 def copy_external_figures() -> None:
     """Copy figures generated by other scripts into the thesis figure dir."""
     search_dirs = [
@@ -862,12 +835,96 @@ def copy_external_figures() -> None:
         if not copied:
             print(f"  skip {name} (not found)")
 
+def fig_reality_collapse() -> None:
+    """Single-figure headline: stratified XGB macro F1 vs day-split XGB
+    macro F1. Numbers come straight from the metrics JSONs so the figure
+    stays in sync with the actual run."""
+    strat = json.loads(
+        (REPORTS / "metrics_strat" / "metrics.json").read_text())
+    day = json.loads(
+        (REPORTS / "metrics_day" / "metrics.json").read_text())
+    f1_strat = float(strat["summary"]["xgboost"]["macro_f1"])
+    f1_day = float(day["summary"]["xgboost"]["macro_f1"])
+    drop = f1_strat - f1_day
 
-# ── main ─────────────────────────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    bars = ax.bar(
+        ["Published-style\nRandom Stratified Split",
+         "Realistic\nTemporal Day Split"],
+        [f1_strat, f1_day],
+        color=["#1f3a93", "#8b0000"], edgecolor="black", linewidth=1.5,
+        width=0.55,
+    )
+    for bar, val in zip(bars, [f1_strat, f1_day]):
+        ax.text(bar.get_x() + bar.get_width() / 2, val + 0.02,
+                f"{val:.2f}", ha="center", fontsize=22, fontweight="bold")
+    ax.set_ylim(0, 1.0)
+    ax.set_ylabel("XGBoost Macro F1 on CICIDS2017", fontsize=13,
+                  fontweight="bold")
+    ax.set_title(
+        "The Reality Collapse: Published Benchmarks Overstate Deployment Performance",
+        fontsize=14, fontweight="bold", pad=15)
+    ax.annotate(
+        f"{drop:.2f} collapse",
+        xy=(1, f1_day + 0.05), xytext=(0.55, f1_strat - 0.15),
+        fontsize=14, color="#8b0000", fontweight="bold",
+        ha="center",
+        arrowprops=dict(arrowstyle="->", color="#8b0000", lw=2.2),
+        bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
+                  edgecolor="#8b0000", linewidth=1.8))
+    ax.text(0.5, -0.18,
+            "Same model. Same data. Same hyperparameters. Only the evaluation protocol changes.",
+            ha="center", va="top", fontsize=11, style="italic",
+            color="#555", transform=ax.transAxes)
+    ax.set_facecolor("#f5f5f5")
+    ax.grid(axis="y", alpha=0.3, color="white", linewidth=1.5)
+    ax.set_axisbelow(True)
+    ax.spines[["top", "right"]].set_visible(False)
+    plt.tight_layout()
+    _save(fig, "reality_collapse.png")
+
+
+def fig_deployment_economics() -> None:
+    """Single-budget recall bar chart. Pulls recall@0.1%FPR per model
+    straight from operating_points.json so the figure cannot drift."""
+    ops = json.loads(
+        (REPORTS / "operating_points" / "operating_points.json").read_text())
+    names = ["logreg", "random_forest", "xgboost", "lightgbm"]
+    pretty = ["LogReg", "Random Forest", "XGBoost", "LightGBM"]
+    vals = [ops[m]["operating_points"]["fpr_0.001"]["recall"] * 100
+            for m in names]
+    colors = ["#7f8c8d", "#1f3a93", "#8b0000", "#e67e22"]
+
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    bars = ax.bar(pretty, vals, color=colors, edgecolor="black",
+                  linewidth=1.2, width=0.55)
+    for bar, v in zip(bars, vals):
+        ax.text(bar.get_x() + bar.get_width() / 2, v + 1.5,
+                f"{v:.1f}%", ha="center", fontsize=16, fontweight="bold")
+    ax.set_ylabel("Attack recall (%)", fontsize=13, fontweight="bold")
+    ax.set_ylim(0, 75)
+    ax.set_title(
+        "Deployment Economics: Attacks Caught Per Day at a 0.1% FPR Budget\n"
+        "(approx. 1,500 false alerts/day on 2M flows = ~1 analyst-shift of triage)",
+        fontsize=12, fontweight="bold", pad=12)
+    ax.text(0.5, -0.18,
+            "At the FPR budget where one analyst can absorb the alert volume, "
+            f"RF catches {vals[1]:.0f} percent of attacks while XGBoost catches {vals[2]:.0f} percent.\n"
+            "Calibration determines deployment outcomes more than peak F1.",
+            ha="center", va="top", fontsize=10, style="italic",
+            color="#555", transform=ax.transAxes)
+    ax.set_facecolor("#f5f5f5")
+    ax.grid(axis="y", alpha=0.3, color="white", linewidth=1.5)
+    ax.set_axisbelow(True)
+    ax.spines[["top", "right"]].set_visible(False)
+    plt.tight_layout()
+    _save(fig, "deployment_economics.png")
+
 
 def main() -> None:
     print("[thesis figures] generating...")
 
+    fig_reality_collapse()
     fig_confusion_matrix()
     fig_evasion_storyboard()
     fig_feature_importance_xgb()
@@ -882,6 +939,7 @@ def main() -> None:
     fig_cross_dataset()
     fig_lodo_folds()
     fig_generalisation_gap()
+    fig_deployment_economics()
     master_results_table()
     copy_external_figures()
 

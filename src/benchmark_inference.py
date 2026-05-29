@@ -144,10 +144,12 @@ def main():
     print(f"[benchmark] wrote {out_md}")
 
     fig, ax = plt.subplots(figsize=(9, 5))
+    label_map = {"logreg": "LogReg", "random_forest": "Random Forest",
+                 "xgboost": "XGBoost", "lightgbm": "LightGBM"}
     names, fps_vals = [], []
     for name, res in all_results.items():
         if bench_batch in res:
-            names.append(name)
+            names.append(label_map.get(name, name))
             fps_vals.append(res[bench_batch]["flows_per_second"])
     colors = ["#4C72B0", "#55A868", "#C44E52", "#8172B3"][: len(names)]
     bars = ax.bar(names, fps_vals, color=colors)

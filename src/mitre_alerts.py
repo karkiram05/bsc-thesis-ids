@@ -67,7 +67,7 @@ def main() -> None:
     if not MAPPING_PATH.exists():
         raise SystemExit(f"Missing MITRE mapping file: {MAPPING_PATH}")
     if not (metrics_dir / "metrics.json").exists():
-        raise SystemExit(f"Missing metrics.json in {metrics_dir}. Run: python -m src.evaluateuate first.")
+        raise SystemExit(f"Missing metrics.json in {metrics_dir}. Run: python -m src.evaluate first.")
 
     mapping = json.loads(MAPPING_PATH.read_text())
     m = json.loads((metrics_dir / "metrics.json").read_text())

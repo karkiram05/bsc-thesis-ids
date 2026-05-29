@@ -192,15 +192,19 @@ def main() -> None:
             cm, index=["Benign", "Attack"], columns=["Pred_Benign", "Pred_Attack"]
         ).to_csv(out / f"binary_confusion_matrix_{key}.csv")
 
-        if key in ("xgboost", "lightgbm", "random_forest"):
-            try:
-                frac_pos, mean_pred = calibration_curve(ys, proba, n_bins=10)
-                pd.DataFrame({
-                    "mean_predicted_prob": mean_pred,
-                    "fraction_positives": frac_pos
-                }).to_csv(out / f"binary_calibration_curve_{key}.csv", index=False)
-            except Exception as e:
-                print(f"[warn] Calibration curve failed for model '{key}': {e}")
+        # all four models get a calibration curve (LogReg is the reference
+        # for "well calibrated"). quantile binning so each bin has equal
+        # sample count, which avoids the zigzag you get from uniform bins
+        # when the score distribution is heavily skewed (tree ensembles).
+        try:
+            frac_pos, mean_pred = calibration_curve(
+                ys, proba, n_bins=10, strategy="quantile")
+            pd.DataFrame({
+                "mean_predicted_prob": mean_pred,
+                "fraction_positives": frac_pos
+            }).to_csv(out / f"binary_calibration_curve_{key}.csv", index=False)
+        except Exception as e:
+            print(f"[warn] Calibration curve failed for model '{key}': {e}")
 
         all_results[key] = {
             "roc_auc": round(roc_auc, 4),

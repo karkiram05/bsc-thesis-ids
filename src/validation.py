@@ -364,8 +364,11 @@ def exp3_binary_operating_points(df: pd.DataFrame) -> None:
     fig, ax = plt.subplots(figsize=(8, 6))
     colors = {"logreg": "#e74c3c", "random_forest": "#2ecc71",
               "xgboost": "#3498db", "lightgbm": "#9b59b6"}
+    label_map = {"logreg": "LogReg", "random_forest": "Random Forest",
+                 "xgboost": "XGBoost", "lightgbm": "LightGBM"}
     for name, (fpr_arr, tpr_arr) in roc_data.items():
-        ax.plot(fpr_arr, tpr_arr, label=name, color=colors.get(name, "gray"), linewidth=2)
+        ax.plot(fpr_arr, tpr_arr, label=label_map.get(name, name),
+                color=colors.get(name, "gray"), linewidth=2)
     ax.plot([0, 1], [0, 1], "k--", alpha=0.3, label="Random")
     ax.set_xlabel("False Positive Rate", fontsize=12)
     ax.set_ylabel("Recall (True Positive Rate)", fontsize=12)

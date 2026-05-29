@@ -1,6 +1,6 @@
 # Wireshark + Thesis Pipeline: Defence Playbook
 
-End-to-end live demo, verified working on macOS 15 with Wireshark 4
+End-to-end live demo, verified working on macOS with Wireshark 4
 and Python 3.12. Captures real packets off your laptop NIC, converts
 them to the same 73 CICIDS2017 flow features the thesis trained on,
 and scores them with the deployed binary day-split random forest.
