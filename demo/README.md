@@ -15,7 +15,7 @@ Alerts are emitted when the model's predicted probability exceeds the Youden's J
 ## Quick start
 
 ```bash
-cd /Users/ramkarki/bsc-thesis-ids
+cd path/to/bsc-thesis-ids
 source .venv/bin/activate
 cd demo
 python app.py

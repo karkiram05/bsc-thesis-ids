@@ -12,10 +12,10 @@ If you only want the live demo to work, do this:
 ```bash
 brew install --cask wireshark
 brew install nmap
-source /Users/ramkarki/bsc-thesis-ids/.venv/bin/activate
+source path/to/bsc-thesis-ids/.venv/bin/activate
 pip uninstall -y cicflowmeter
 pip install git+https://github.com/hieulw/cicflowmeter.git
-cd /Users/ramkarki/bsc-thesis-ids/demo
+cd path/to/bsc-thesis-ids/demo
 DEFENCE_SCAN=1 ./live_capture.sh
 ```
 
@@ -99,7 +99,7 @@ broken default for `--fields` (bool instead of str). The hieulw fork
 is the one most CICIDS2017 follow-up papers use:
 
 ```bash
-source /Users/ramkarki/bsc-thesis-ids/.venv/bin/activate
+source path/to/bsc-thesis-ids/.venv/bin/activate
 pip uninstall -y cicflowmeter
 pip install git+https://github.com/hieulw/cicflowmeter.git
 ```
