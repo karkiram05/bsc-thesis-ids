@@ -87,7 +87,7 @@ def main() -> None:
     # that row ends up with all-zero dummies for the unseen value, which is
     # the safe fallback (the model never saw positive signal for it anyway).
     # Fitting on train+test together would otherwise give the model a feature
-    # column that is always 0 in training — test-dependent and undesirable.
+    # column that is always 0 in training - test-dependent and undesirable.
     train_mask = df["split"] == "train"
     for col in UNSW_CATEGORICAL:
         if col in df.columns:

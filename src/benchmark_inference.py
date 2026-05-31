@@ -126,7 +126,7 @@ def main():
             if bs in res:
                 row.append(f"{res[bs]['flows_per_second']:,.0f}")
             else:
-                row.append("—")
+                row.append("-")
         lines.append(" | ".join(row) + " |")
 
     lines += [
@@ -155,7 +155,7 @@ def main():
     bars = ax.bar(names, fps_vals, color=colors)
     ax.set_yscale("log")
     ax.set_ylabel("Flows / second (log scale)")
-    ax.set_title("Inference throughput — binary IDS models (batch=10,000)")
+    ax.set_title("Inference throughput - binary IDS models (batch=10,000)")
     ax.axhline(1667, color="red", linestyle="--", alpha=0.6,
                label="1 Gbps line-rate (~1,667 flows/sec)")
     for b, v in zip(bars, fps_vals):

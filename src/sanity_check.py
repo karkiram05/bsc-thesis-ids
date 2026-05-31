@@ -75,7 +75,7 @@ def main() -> None:
     # --- 7. Split coverage per split strategy ---
     for split_col in [SPLIT_COL_STRAT, SPLIT_COL_DAY]:
         if split_col not in df.columns:
-            lines.append(f"\n## Split: {split_col}\n\nColumn not found — run prepare_cicids.\n")
+            lines.append(f"\n## Split: {split_col}\n\nColumn not found - run prepare_cicids.\n")
             continue
 
         lines.append(f"\n## Split: `{split_col}`\n")

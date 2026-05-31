@@ -92,7 +92,7 @@ def main():
     models.append(("logreg", lr))
     print("[train] LogReg done.")
 
-    # RandomForest — raw features, no scaling needed
+    # RandomForest - raw features, no scaling needed
     print("[train] RandomForest ...")
     rf = RandomForestClassifier(n_estimators=200, max_depth=24, max_features="sqrt", class_weight="balanced_subsample", random_state=RNG, n_jobs=-1)
     rf.fit(Xt, yt)
@@ -114,7 +114,7 @@ def main():
             json.dump({"train_classes": train_classes, "n_global_classes": n_classes}, f, indent=2)
         print("[train] XGBoost done.")
 
-        # LightGBM — handles non-contiguous labels natively, no remap needed
+        # LightGBM - handles non-contiguous labels natively, no remap needed
         import lightgbm as lgb
         print("[train] LightGBM ...")
         # class_weight="balanced" over-corrects here (macro_f1 drops to 0.05),

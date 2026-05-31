@@ -44,7 +44,7 @@ MITRE = {
         "kill_chain": "Credential Access",
         "soc_action": (
             "1. Block source IP at firewall after threshold (e.g. 10 failed attempts).\n"
-            "2. Enable SSH key-only authentication — disable password auth.\n"
+            "2. Enable SSH key-only authentication - disable password auth.\n"
             "3. Check for successful SSH sessions from same source.\n"
             "4. Alert on: >10 SSH connections/min from single source IP."
         ),
@@ -77,9 +77,9 @@ MITRE = {
         "technique": "Network Denial of Service",
         "kill_chain": "Impact",
         "soc_action": (
-            "1. Enable HTTP rate limiting at WAF — block >100 requests/sec/IP.\n"
+            "1. Enable HTTP rate limiting at WAF - block >100 requests/sec/IP.\n"
             "2. Activate DDoS scrubbing if available (cloud provider or CDN).\n"
-            "3. Check server CPU and memory — Hulk exhausts application threads.\n"
+            "3. Check server CPU and memory - Hulk exhausts application threads.\n"
             "4. Alert on: >500 unique HTTP GET requests/sec to same endpoint."
         ),
         "detection_note": (
@@ -95,7 +95,7 @@ MITRE = {
         "technique": "Endpoint Denial of Service: Application Exhaustion",
         "kill_chain": "Impact",
         "soc_action": (
-            "1. Set minimum HTTP request rate — drop connections sending <1 byte/10s.\n"
+            "1. Set minimum HTTP request rate - drop connections sending <1 byte/10s.\n"
             "2. Limit max concurrent connections per IP at web server level.\n"
             "3. Deploy mod_reqtimeout (Apache) or equivalent.\n"
             "4. Alert on: connections with Flow Duration >60s and <100 bytes transferred."
@@ -112,7 +112,7 @@ MITRE = {
         "technique": "Endpoint Denial of Service: Application Exhaustion",
         "kill_chain": "Impact",
         "soc_action": (
-            "1. Same as SlowHTTPTest — deploy connection timeout rules.\n"
+            "1. Same as SlowHTTPTest - deploy connection timeout rules.\n"
             "2. Use nginx instead of Apache where possible (more resistant).\n"
             "3. Alert on: connections open >30s with <50 bytes sent."
         ),
@@ -130,7 +130,7 @@ MITRE = {
         "soc_action": (
             "1. IMMEDIATE: Patch OpenSSL to >=1.0.1g on all affected servers.\n"
             "2. Revoke and reissue ALL TLS certificates on affected hosts.\n"
-            "3. Force password resets for all users — session tokens may be leaked.\n"
+            "3. Force password resets for all users - session tokens may be leaked.\n"
             "4. Check server memory dumps for leaked private key material.\n"
             "5. Alert on: malformed TLS heartbeat requests (unusual payload length)."
         ),
@@ -172,7 +172,7 @@ MITRE = {
         "detection_note": (
             "SQLi flows look like normal HTTP but with slightly larger Fwd Packet "
             "(injected payload in the request). Response size (Bwd) varies by success. "
-            "Flow-level detection is hard — WAF or application-layer IDS needed for precision."
+            "Flow-level detection is hard - WAF or application-layer IDS needed for precision."
         ),
     },
     "Web Attack-XSS": {
@@ -187,7 +187,7 @@ MITRE = {
             "4. Alert on: HTTP requests containing <script> or javascript: in parameters."
         ),
         "detection_note": (
-            "XSS is one of the hardest to detect at flow level — the payload is "
+            "XSS is one of the hardest to detect at flow level - the payload is "
             "embedded in HTTP content. Flow statistics are nearly identical to benign. "
             "ML detection relies on subtle Fwd/Bwd packet length asymmetry."
         ),
@@ -199,7 +199,7 @@ MITRE = {
         "kill_chain": "Discovery",
         "soc_action": (
             "1. Identify internal host performing the scan and isolate it.\n"
-            "2. Check for malware on the scanning host — infiltration implies compromise.\n"
+            "2. Check for malware on the scanning host - infiltration implies compromise.\n"
             "3. Review firewall logs for lateral movement attempts.\n"
             "4. Alert on: single internal host connecting to >10 distinct ports in 60s."
         ),
@@ -215,9 +215,9 @@ MITRE = {
         "technique": "Application Layer Protocol: Web Protocols",
         "kill_chain": "Command and Control",
         "soc_action": (
-            "1. Identify C2 domain via DNS logs — block domain and IP at firewall.\n"
+            "1. Identify C2 domain via DNS logs - block domain and IP at firewall.\n"
             "2. Isolate the infected host from the network immediately.\n"
-            "3. Perform forensic analysis — check scheduled tasks, registry run keys.\n"
+            "3. Perform forensic analysis - check scheduled tasks, registry run keys.\n"
             "4. Alert on: periodic outbound connections to same external IP at fixed intervals."
         ),
         "detection_note": (
@@ -250,9 +250,9 @@ MITRE = {
         "technique": "Network Service Discovery",
         "kill_chain": "Discovery",
         "soc_action": (
-            "1. Block source IP at perimeter — port scanning precedes attacks.\n"
-            "2. Log the scan for threat intelligence — record source, timing, ports.\n"
-            "3. Review which services were discovered — harden exposed ports.\n"
+            "1. Block source IP at perimeter - port scanning precedes attacks.\n"
+            "2. Log the scan for threat intelligence - record source, timing, ports.\n"
+            "3. Review which services were discovered - harden exposed ports.\n"
             "4. Alert on: >100 distinct destination ports from single source in 60s."
         ),
         "detection_note": (
@@ -325,8 +325,8 @@ def _get_mitre(attack: str) -> dict:
     for k, v in MITRE.items():
         if k.lower() == al:
             return v
-    return {"tactic": "Unknown", "technique_id": "—", "technique": "—",
-            "kill_chain": "—", "soc_action": "Review manually.", "detection_note": "—"}
+    return {"tactic": "Unknown", "technique_id": "-", "technique": "-",
+            "kill_chain": "-", "soc_action": "Review manually.", "detection_note": "-"}
 
 
 # Section 1: Flow statistics per attack type
@@ -335,7 +335,7 @@ def section_flow_statistics(df: pd.DataFrame, feat: list[str]) -> str:
     """Per-attack flow-level stats."""
     lines = [
         "# 1. Flow-Level Traffic Statistics per Attack Type\n\n",
-        "Per-attack flow statistics — what each attack looks like at the network level.\n\n",
+        "Per-attack flow statistics - what each attack looks like at the network level.\n\n",
     ]
 
     attacks = sorted(df["attack_type"].unique())
@@ -347,13 +347,13 @@ def section_flow_statistics(df: pd.DataFrame, feat: list[str]) -> str:
     for attack in attacks:
         sub = df[df["attack_type"] == attack]
         m = _get_mitre(attack)
-        tactic = m.get("tactic") or "—"
-        tid = m.get("technique_id") or "—"
-        technique = m.get("technique") or "—"
+        tactic = m.get("tactic") or "-"
+        tid = m.get("technique_id") or "-"
+        technique = m.get("technique") or "-"
 
         lines.append(f"## {attack}\n\n")
         lines.append(f"- **ATT&CK tactic**: {tactic}\n")
-        lines.append(f"- **Technique**: {tid} — {technique}\n")
+        lines.append(f"- **Technique**: {tid} - {technique}\n")
         lines.append(f"- **Flow count**: {len(sub):,} ({len(sub)/len(df)*100:.2f}% of dataset)\n\n")
 
         if stat_cols:
@@ -386,7 +386,7 @@ def section_flow_statistics(df: pd.DataFrame, feat: list[str]) -> str:
 def section_detection_signatures(df: pd.DataFrame, feat: list[str]) -> str:
     """Sigma-style detection rules derived from flow statistics."""
     lines = [
-        "# 2. Detection Signatures — Flow-Based Detection Logic\n\n",
+        "# 2. Detection Signatures - Flow-Based Detection Logic\n\n",
         "Detection rules derived from flow statistics (Sigma-style). "
         "Real deployment needs network-specific threshold tuning.\n\n",
     ]
@@ -475,9 +475,9 @@ def section_detection_signatures(df: pd.DataFrame, feat: list[str]) -> str:
                 "Fwd Packet Length Mean < 100 bytes (small heartbeat request)",
                 "Bwd Packet Length Max > 10000 bytes (server memory leak in response)",
                 "Bwd/Fwd byte ratio > 100x (extreme asymmetry)",
-                "Alert immediately — zero tolerance for this pattern",
+                "Alert immediately - zero tolerance for this pattern",
             ],
-            "false_positives": ["None expected — this pattern is highly specific"],
+            "false_positives": ["None expected - this pattern is highly specific"],
             "severity": "CRITICAL",
         },
         "Web Attack-Brute Force": {
@@ -511,7 +511,7 @@ def section_detection_signatures(df: pd.DataFrame, feat: list[str]) -> str:
             "condition": [
                 "destination_port = 80 or 443",
                 "HTTP parameters contain: <script>, javascript:, onerror=, onload=",
-                "Flow-level detection has low precision — WAF required",
+                "Flow-level detection has low precision - WAF required",
                 "Recommend: Content-Security-Policy header + output encoding audit",
             ],
             "false_positives": ["Security researchers", "Input validation test suites"],
@@ -519,7 +519,7 @@ def section_detection_signatures(df: pd.DataFrame, feat: list[str]) -> str:
         },
         "Infiltration": {
             "title": "Internal Network Service Discovery (Post-Compromise Scan)",
-            "description": "Detects internal host performing port sweep — indicator of compromise.",
+            "description": "Detects internal host performing port sweep - indicator of compromise.",
             "condition": [
                 "Source IP is internal (RFC1918 range)",
                 "Many distinct destination ports contacted in short time",
@@ -550,7 +550,7 @@ def section_detection_signatures(df: pd.DataFrame, feat: list[str]) -> str:
                 "Many distinct source IPs (distributed = not brute force from one IP)",
                 "Short Flow Duration per source (stateless flood)",
                 "High Total Fwd Packets, low Bwd Packets (one-way flood)",
-                "Alert immediately — escalate to ISP/CDN for scrubbing",
+                "Alert immediately - escalate to ISP/CDN for scrubbing",
             ],
             "false_positives": ["Flash crowds (viral events)", "CDN traffic spikes"],
             "severity": "CRITICAL",
@@ -560,7 +560,7 @@ def section_detection_signatures(df: pd.DataFrame, feat: list[str]) -> str:
             "description": "Detects external attacker probing network for open services.",
             "condition": [
                 "Single external source IP contacts many destination ports",
-                "Flow Duration < 100ms (SYN scan — no full handshake)",
+                "Flow Duration < 100ms (SYN scan - no full handshake)",
                 "Total Fwd Packets = 1 (single SYN packet only)",
                 "Total Backward Packets = 0 (port closed) or 1 (port open)",
                 "Alert if: >100 distinct ports contacted by same source in 60s",
@@ -630,18 +630,18 @@ def section_mitre_tactic_profile(df: pd.DataFrame) -> str:
         "CICIDS2017 covers the following phases of the adversary kill chain:\n\n"
     )
     lines.append(
-        "- **Reconnaissance**: PortScan, Infiltration — attackers mapping the network before striking.\n"
-        "- **Credential Access**: FTP-Patator, SSH-Patator, Web Attack-Brute Force — "
+        "- **Reconnaissance**: PortScan, Infiltration - attackers mapping the network before striking.\n"
+        "- **Credential Access**: FTP-Patator, SSH-Patator, Web Attack-Brute Force - "
         "gaining initial foothold via stolen credentials.\n"
-        "- **Initial Access / Exploitation**: Heartbleed, Web Attack-SQLi, Web Attack-XSS — "
+        "- **Initial Access / Exploitation**: Heartbleed, Web Attack-SQLi, Web Attack-XSS - "
         "exploiting vulnerabilities in public-facing services.\n"
-        "- **Command and Control**: Bot — maintaining persistent access and receiving instructions.\n"
-        "- **Impact**: DoS variants, DDoS — disrupting service availability.\n\n"
+        "- **Command and Control**: Bot - maintaining persistent access and receiving instructions.\n"
+        "- **Impact**: DoS variants, DDoS - disrupting service availability.\n\n"
     )
     lines.append(
         "**What is NOT covered**: Lateral movement, Privilege Escalation, Persistence, "
         "Data Exfiltration (as labelled attack classes). This is a known limitation of CICIDS2017 "
-        "for real-world SOC use — the dataset emphasises perimeter attacks.\n\n"
+        "for real-world SOC use - the dataset emphasises perimeter attacks.\n\n"
     )
 
     lines.append("## Dataset Imbalance from a Security Perspective\n\n")
@@ -649,11 +649,11 @@ def section_mitre_tactic_profile(df: pd.DataFrame) -> str:
         "The dataset is heavily dominated by Impact-category attacks (DoS/DDoS) "
         "because these generate enormous traffic volume. From a blue team perspective, "
         "this imbalance matters:\n\n"
-        "- DoS/DDoS is easy to detect by volume — even a simple threshold rule works.\n"
+        "- DoS/DDoS is easy to detect by volume - even a simple threshold rule works.\n"
         "- The hard detection problems are the low-volume attacks: "
         "Heartbleed (11 flows), Infiltration (36 flows), Web Attack-SQLi (21 flows).\n"
         "- A good IDS must detect these rare but high-severity events. "
-        "This is why macro F1 (which weights all classes equally) is the right metric — "
+        "This is why macro F1 (which weights all classes equally) is the right metric - "
         "not accuracy, which would score 99%+ by just ignoring rare classes.\n\n"
     )
 
@@ -664,7 +664,7 @@ def section_mitre_tactic_profile(df: pd.DataFrame) -> str:
 
 def section_soc_triage_playbook(df: pd.DataFrame) -> str:
     """
-    SOC alert triage guide — what to do when the ML model fires an alert.
+    SOC alert triage guide - what to do when the ML model fires an alert.
     Written as a practical reference for a SOC analyst or L1/L2 engineer.
     """
     lines = [
@@ -705,15 +705,15 @@ def section_soc_triage_playbook(df: pd.DataFrame) -> str:
             m = _get_mitre(attack)
             n_flows = int((df["attack_type"] == attack).sum())
             lines.append(f"### Alert: {attack}\n\n")
-            lines.append(f"- **ATT&CK**: {m.get('technique_id','—')} — {m.get('technique','—')}\n")
-            lines.append(f"- **Tactic**: {m.get('tactic','—')}\n")
+            lines.append(f"- **ATT&CK**: {m.get('technique_id','-')} - {m.get('technique','-')}\n")
+            lines.append(f"- **Tactic**: {m.get('tactic','-')}\n")
             lines.append(f"- **Flows in dataset**: {n_flows:,}\n\n")
             lines.append("**Triage steps**:\n\n")
             soc = m.get("soc_action", "Review manually.")
             for line in soc.strip().split("\n"):
                 lines.append(f"{line.strip()}\n")
             lines.append("\n**Detection note** (what the network signature looks like):\n\n")
-            lines.append(f"> {m.get('detection_note', '—')}\n\n")
+            lines.append(f"> {m.get('detection_note', '-')}\n\n")
             lines.append("---\n\n")
 
     lines.append("## Escalation Matrix\n\n")
@@ -737,10 +737,10 @@ def section_feature_separability(df: pd.DataFrame, feat: list[str]) -> str:
     This tells a detection engineer which features to focus on.
     """
     lines = [
-        "# 5. Feature Separability — What Makes Each Attack Detectable\n\n",
+        "# 5. Feature Separability - What Makes Each Attack Detectable\n\n",
         "This section identifies the flow features that most strongly distinguish ",
         "each attack from benign traffic. A detection engineer uses this to understand ",
-        "why the ML model works — and to write manual detection rules.\n\n",
+        "why the ML model works - and to write manual detection rules.\n\n",
         "**Method**: For each feature, we compute the absolute normalised difference ",
         "between the attack mean and benign mean, scaled by the benign standard deviation. ",
         "Higher values = stronger signal for detection.\n\n",
@@ -752,7 +752,7 @@ def section_feature_separability(df: pd.DataFrame, feat: list[str]) -> str:
     for attack in attacks:
         sub = df[df["attack_type"] == attack]
         m = _get_mitre(attack)
-        lines.append(f"## {attack} (ATT&CK: {m.get('technique_id','—')})\n\n")
+        lines.append(f"## {attack} (ATT&CK: {m.get('technique_id','-')})\n\n")
 
         scores = []
         for f in feat:
@@ -834,7 +834,7 @@ def plot_attack_volume(df: pd.DataFrame) -> None:
     bars = ax.barh(attacks, vals, color=colors, edgecolor="white")
     ax.set_xlabel("Flow Count (log scale)", fontsize=11)
     ax.set_xscale("log")
-    ax.set_title("Attack Class Volume in CICIDS2017\n(Note: log scale — huge imbalance)", fontsize=12)
+    ax.set_title("Attack Class Volume in CICIDS2017\n(Note: log scale - huge imbalance)", fontsize=12)
     ax.invert_yaxis()
     for bar, v in zip(bars, vals):
         ax.text(bar.get_width() * 1.05, bar.get_y() + bar.get_height() / 2,

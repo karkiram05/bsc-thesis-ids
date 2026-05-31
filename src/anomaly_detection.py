@@ -29,7 +29,7 @@ OUT = REPORTS_DIR / "anomaly"
 LOF_TRAIN_SAMPLE = 30_000
 # IsolationForest is fast but still does not need all benign rows
 IFOREST_TRAIN_SAMPLE = 200_000
-FPR_TARGETS = [0.001, 0.01]   # 0.1%, 1% — same budgets as operating_points.py
+FPR_TARGETS = [0.001, 0.01]   # 0.1%, 1% - same budgets as operating_points.py
 
 
 def _load_day_split():
@@ -184,10 +184,10 @@ def main():
             roc = r.get("roc_auc")
             pr = r.get("pr_auc")
             # supervised json may have None if a model failed; keep row but show dash
-            roc_s = f"{roc:.4f}" if roc is not None else "—"
-            pr_s = f"{pr:.4f}" if pr is not None else "—"
+            roc_s = f"{roc:.4f}" if roc is not None else "-"
+            pr_s = f"{pr:.4f}" if pr is not None else "-"
             lines.append(
-                f"| {name} | supervised | {roc_s} | {pr_s} | — | — |"
+                f"| {name} | supervised | {roc_s} | {pr_s} | n/a | - |"
             )
 
     lines += [
@@ -199,7 +199,7 @@ def main():
         "- If the unsupervised ROC-AUC is close to the supervised number, it means",
         "  the attack traffic simply looks different from benign in feature space,",
         "  and labels are not strictly necessary to catch it.",
-        "- If the gap is large, labels are doing real work — the supervised model",
+        "- If the gap is large, labels are doing real work - the supervised model",
         "  is learning an attack-specific decision boundary that pure density or",
         "  isolation cannot recover.",
         "- In practice deployments combine both: unsupervised for novelty, supervised",
@@ -221,7 +221,7 @@ def main():
     bars = ax.bar(all_names, all_vals, color=colors)
     ax.set_ylim(0, 1.05)
     ax.set_ylabel("ROC-AUC (binary: Attack vs Benign)")
-    ax.set_title("Unsupervised vs Supervised IDS — binary day split (Friday test)")
+    ax.set_title("Unsupervised vs Supervised IDS - binary day split (Friday test)")
     for b, v in zip(bars, all_vals):
         ax.text(b.get_x() + b.get_width() / 2, v + 0.01, f"{v:.3f}",
                 ha="center", fontsize=9)

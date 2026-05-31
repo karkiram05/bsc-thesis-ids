@@ -104,7 +104,7 @@ Place the raw datasets:
 make full
 ```
 
-Runtime is roughly 2 to 5 hours on a modern laptop. The two slowest stages are `lodo` (20 model fits across 5 folds) and `adversarial` (greedy evasion plus adversarial training set generation). On macOS, prevent lid sleeping with `caffeinate -i make full`.
+Runtime is roughly 3 to 5 hours on a modern laptop (Apple M2 reference; expect more on slower hardware). The dominant stages are `lodo` (20 model fits across 5 folds, ~1.5-2 hours), `adversarial` (greedy score-query attack on 500 flows, ~45-60 minutes), `validation` (sensitivity sweep across split policies, ~1-2 hours), and stratified multi-class training (~30-40 minutes). On macOS, prevent lid sleeping with `caffeinate -i make full`.
 
 ### Per-stage targets
 

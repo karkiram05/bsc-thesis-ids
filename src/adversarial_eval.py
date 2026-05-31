@@ -310,9 +310,9 @@ def main() -> None:
     u_med = results["median_linf_to_flip_undefended_sigma"]
     d_med = results["median_linf_to_flip_defended_sigma"]
     md.append(f"| Undefended RF | {r_clean['flipped'].mean():.4f} | {u_med:.3f} |" if u_med else
-              f"| Undefended RF | {r_clean['flipped'].mean():.4f} | — |")
+              f"| Undefended RF | {r_clean['flipped'].mean():.4f} | n/a |")
     md.append(f"| Adv-trained RF | {r_def['flipped'].mean():.4f} | {d_med:.3f} |" if d_med else
-              f"| Adv-trained RF | {r_def['flipped'].mean():.4f} | — |")
+              f"| Adv-trained RF | {r_def['flipped'].mean():.4f} | n/a |")
     md.append("")
 
     md.append("## Robust accuracy vs perturbation budget\n")

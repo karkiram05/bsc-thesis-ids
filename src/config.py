@@ -26,7 +26,7 @@ UNSW_NON_FEATURE = frozenset({
 # UNSW-NB15 categorical columns
 UNSW_CATEGORICAL = ["proto", "service", "state"]
 
-# Leakage columns — derived rates that leak label info
+# Leakage columns - derived rates that leak label info
 LEAKAGE_COLUMNS = frozenset({
     "Flow Bytes/s",
     "Flow Packets/s",
@@ -34,7 +34,7 @@ LEAKAGE_COLUMNS = frozenset({
     "Bwd Packets/s",
 })
 
-# Non-feature columns — never feed these to a model
+# Non-feature columns - never feed these to a model
 NON_FEATURE = frozenset({
     "Label",
     "is_attack",
@@ -47,7 +47,7 @@ NON_FEATURE = frozenset({
     "row_hash",
 })
 
-# Day split — temporal ordering: train Mon-Wed, val Thu, test Fri.
+# Day split - temporal ordering: train Mon-Wed, val Thu, test Fri.
 # Attack types are disjoint across days, so multi-class fails on unseen classes.
 # Binary (benign vs attack) still works.
 DAY_TO_SPLIT = {

@@ -145,7 +145,7 @@ def main():
     ax.set_xticklabels(pretty)
     ax.set_ylabel("Recall (true positive rate)")
     ax.set_ylim(0, 1.05)
-    ax.set_title("Recall at fixed FPR budgets — binary day split (Friday test)")
+    ax.set_title("Recall at fixed FPR budgets - binary day split (Friday test)")
     ax.legend()
     for i, name in enumerate(names):
         for off, t in zip([-w, 0, w], FPR_TARGETS):

@@ -14,7 +14,7 @@ def auc_from_arrays(fpr, tpr):
     """Trapezoid AUC from FPR/TPR arrays."""
     _trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz", None)
     if _trapz is None:
-        raise RuntimeError("numpy has neither trapezoid nor trapz — upgrade numpy")
+        raise RuntimeError("numpy has neither trapezoid nor trapz - upgrade numpy")
     return float(_trapz(tpr, fpr))
 
 def main():

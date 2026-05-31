@@ -44,8 +44,10 @@ Examiner question you should expect:
 
 With this playbook you have an answer. Capture 20 seconds of your
 own traffic, score with the deployed RF, show the result. The model
-alerts on your port scan because port-scan flow signatures are
-structurally stable, not because the year is 2017.
+alerts on your port scan because nmap produces flow-shape patterns
+that resemble the PortScan behaviour learned from CICIDS2017. Treat
+this as a qualitative demonstration on a single home-network capture,
+not as evidence of production-scale cross-year generalisation.
 
 ## Honest limitations up front
 

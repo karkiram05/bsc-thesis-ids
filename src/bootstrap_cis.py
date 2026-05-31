@@ -98,7 +98,7 @@ def main():
     (OUT / "binary_day_cis.json").write_text(json.dumps(results, indent=2))
 
     lines = [
-        "# Bootstrap 95% Confidence Intervals — Binary Day Split",
+        "# Bootstrap 95% Confidence Intervals - Binary Day Split",
         "",
         f"- Resamples: **B = {B}**",
         f"- Seed: **{SEED}**",
@@ -121,7 +121,7 @@ def main():
         "",
         "Interpretation: the CIs are narrow because the test set is large "
         f"(n={len(y_test):,}). The informative numbers are differences between "
-        "models — overlapping CIs on precision/recall confirm the qualitative ranking.",
+        "models - overlapping CIs on precision/recall confirm the qualitative ranking.",
         "",
     ]
     (OUT / "binary_day_cis.md").write_text("\n".join(lines))

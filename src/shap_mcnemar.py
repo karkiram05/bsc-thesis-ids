@@ -138,7 +138,7 @@ def shap_analysis():
         sv_plot = sv_plot[:, :, 1]
     shap.summary_plot(sv_plot, X_sample, max_display=20, show=False,
                       plot_type="dot")
-    plt.title("SHAP Feature Importance — RF Binary Detector (Day Split)\n"
+    plt.title("SHAP Feature Importance - RF Binary Detector (Day Split)\n"
               "How each feature pushes prediction toward Attack (+) or Benign (-)",
               fontsize=12, fontweight="bold", pad=20)
     plt.tight_layout()
@@ -169,7 +169,7 @@ def shap_analysis():
             feature_names=list(X_sample.columns),
         )
         shap.plots.waterfall(exp, max_display=15, show=False)
-        plt.title("SHAP Waterfall — Why RF flagged this flow as Attack",
+        plt.title("SHAP Waterfall - Why RF flagged this flow as Attack",
                   fontsize=11, fontweight="bold")
         plt.tight_layout()
         out2 = FIG_DIR / "shap_waterfall_attack.png"
@@ -193,7 +193,7 @@ def shap_analysis():
             feature_names=list(X_sample.columns),
         )
         shap.plots.waterfall(exp, max_display=15, show=False)
-        plt.title("SHAP Waterfall — Why RF classified this flow as Benign",
+        plt.title("SHAP Waterfall - Why RF classified this flow as Benign",
                   fontsize=11, fontweight="bold")
         plt.tight_layout()
         out3 = FIG_DIR / "shap_waterfall_benign.png"
@@ -340,7 +340,7 @@ def fig_mcnemar(mcnemar_rows: list[dict] | None = None):
 
     fig, ax = plt.subplots(figsize=(15, 5.5))
     ax.axis("off")
-    ax.set_title("McNemar's Test — Binary Detection on Day Split\n"
+    ax.set_title("McNemar's Test - Binary Detection on Day Split\n"
                  "All model differences are statistically significant (p < 0.0001)",
                  fontsize=14, fontweight="bold", pad=20, color="#1F3A93")
 
@@ -382,7 +382,7 @@ def fig_mcnemar(mcnemar_rows: list[dict] | None = None):
     plt.close(fig)
     print(f"  wrote {out}")
 
-    # Interpretation box — numbers are pulled from the live mcnemar_rows so
+    # Interpretation box - numbers are pulled from the live mcnemar_rows so
     # the defense figure always reflects the latest run, not stale values.
     n_sig = sum(1 for r in mcnemar_rows if r["sig"] == "YES")
     rf_lines = []
@@ -436,7 +436,7 @@ def fig_hyperparameters():
 
     fig, ax = plt.subplots(figsize=(14, 7))
     _render_table(ax, col_labels, row_data,
-                  "Hyperparameter Configuration — Binary Models (CICIDS2017)",
+                  "Hyperparameter Configuration - Binary Models (CICIDS2017)",
                   col_widths=[0.22, 0.195, 0.195, 0.195, 0.195])
     plt.tight_layout()
     out = FIG_DIR / "hyperparameter_table.png"

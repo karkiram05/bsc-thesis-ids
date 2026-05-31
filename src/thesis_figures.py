@@ -370,6 +370,8 @@ def fig_roc_curves() -> None:
 
 def fig_pr_curves_minority() -> None:
     """Binary day-split precision-recall curves, all 4 models."""
+    metrics_path = REPORTS / "metrics_day_binary" / "binary_metrics.json"
+    pr_aucs = json.loads(metrics_path.read_text()) if metrics_path.exists() else {}
     fig, ax = plt.subplots(figsize=(9, 6))
     for model in MODELS:
         csv_path = (REPORTS / "metrics_day_binary" /
@@ -378,10 +380,15 @@ def fig_pr_curves_minority() -> None:
             continue
         df = pd.read_csv(csv_path)
         prec, rec = df["precision"].values, df["recall"].values
-        order = np.argsort(rec)
-        ap = auc(rec[order], prec[order])
+        # Use sklearn's average_precision_score from JSON for label consistency
+        # with thesis tables. Trapezoidal auc(rec, prec) gives a slightly
+        # different value (~0.02 higher for RF) due to step-vs-trapezoid.
+        ap = pr_aucs.get(model, {}).get("pr_auc")
+        if ap is None:
+            order = np.argsort(rec)
+            ap = auc(rec[order], prec[order])
         ax.plot(rec, prec, color=COLORS[model], linewidth=2,
-                label=f"{MODEL_LABELS[model]} (AP = {ap:.3f})")
+                label=f"{MODEL_LABELS[model]} (PR-AUC = {ap:.3f})")
 
     ax.set_xlabel("Recall")
     ax.set_ylabel("Precision")
@@ -688,7 +695,7 @@ def fig_lodo_folds() -> None:
 
     fig.suptitle(
         "Leave-One-Day-Out binary cross-validation\n"
-        "(hatched = Monday, benign-only fold)",
+        "(Monday is benign-only: ROC-AUC and F1 are undefined; bars omitted)",
         fontsize=14, y=1.02)
     plt.tight_layout()
     _save(fig, "lodo_folds.png")
@@ -905,12 +912,12 @@ def fig_deployment_economics() -> None:
     ax.set_ylim(0, 75)
     ax.set_title(
         "Deployment Economics: Attacks Caught Per Day at a 0.1% FPR Budget\n"
-        "(approx. 1,500 false alerts/day on 2M flows = ~1 analyst-shift of triage)",
+        "(~1,500 false alerts/day on 2M flows = ~250 analyst-hours/day at 10 min/alert)",
         fontsize=12, fontweight="bold", pad=12)
     ax.text(0.5, -0.18,
-            "At the FPR budget where one analyst can absorb the alert volume, "
-            f"RF catches {vals[1]:.0f} percent of attacks while XGBoost catches {vals[2]:.0f} percent.\n"
-            "Calibration determines deployment outcomes more than peak F1.",
+            f"At a fixed 0.1 percent FPR budget, RF catches {vals[1]:.0f} percent of attacks "
+            f"while XGBoost catches {vals[2]:.0f} percent.\n"
+            "Low-FPR ROC shape, not peak F1, determines this gap.",
             ha="center", va="top", fontsize=10, style="italic",
             color="#555", transform=ax.transAxes)
     ax.set_facecolor("#f5f5f5")
